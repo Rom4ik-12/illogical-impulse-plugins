@@ -28,6 +28,12 @@ Singleton {
     property string lastExportPath: ""
     property string _modulesSignature: ""
 
+    // Loading state — exposed so the UI can show spinners.
+    property bool loaderUpdating: false
+    property bool refreshing: false
+    property bool installing: false
+    property string updatingModuleId: ""
+
     // Flat list of bar widgets contributed by enabled modules:
     // [{ moduleId, url }]. Drop a `UserModulesBarSlot {}` somewhere in the
     // bar layout to render them.
@@ -77,6 +83,7 @@ Singleton {
             // Disable to revert patches before files change
             root.setEnabled(id, false);
         }
+        root.updatingModuleId = id;
         updateProc.targetId = id;
         updateProc.wasEnabled = wasEnabled;
         updateProc.command = ["bash", root.fetchScript,
@@ -165,6 +172,7 @@ Singleton {
             root.lastError = "Set userModules.loaderUpdateUrl in config.json first.";
             return;
         }
+        root.loaderUpdating = true;
         loaderUpdateProc.command = ["bash", "-c",
               `set -e;`
             + `url='${StringUtils.shellSingleQuoteEscape(url)}';`
@@ -185,6 +193,7 @@ Singleton {
     }
 
     function refresh() {
+        root.refreshing = true;
         scanProc.running = true;
     }
 
@@ -261,6 +270,7 @@ Singleton {
     function install(sourcePath) {
         const src = FileUtils.trimFileProtocol(sourcePath).trim();
         if (src.length === 0) return;
+        root.installing = true;
         const cmd = `set -e; `
             + `src='${StringUtils.shellSingleQuoteEscape(src)}'; `
             + `dst='${StringUtils.shellSingleQuoteEscape(root.modulesDir)}'; `
@@ -339,6 +349,7 @@ Singleton {
                     console.warn("[UserModules]", root.lastError, scanCollector.text);
                     root.modules = [];
                 }
+                root.refreshing = false;
             }
         }
     }
@@ -347,6 +358,7 @@ Singleton {
         id: installProc
         onExited: (code) => {
             if (code !== 0) console.warn("[UserModules] install failed, exit", code);
+            root.installing = false;
             rescanTimer.restart();
         }
     }
@@ -417,6 +429,7 @@ Singleton {
         stdout: StdioCollector { id: updateBuf }
         stderr: StdioCollector { id: updateErrBuf }
         onExited: (code) => {
+            root.updatingModuleId = "";
             const path = (updateBuf.text || "").trim();
             if (code !== 0 || path.length === 0) {
                 root.lastError = `Update failed for ${updateProc.targetId}: `
@@ -446,6 +459,7 @@ Singleton {
         stdout: StdioCollector { id: loaderOutBuf }
         stderr: StdioCollector { id: loaderErrBuf }
         onExited: (code) => {
+            root.loaderUpdating = false;
             if (code === 0) {
                 root.lastError = "";
                 console.log("[UserModules] loader updated", loaderOutBuf.text);
@@ -464,15 +478,38 @@ Singleton {
     readonly property string _loaderApiUrl:
         "https://api.github.com/repos/Rom4ik-12/illogical-impulse-plugins/releases/latest"
 
+    // After a successful loader update, fetch release notes from GitHub,
+    // pick the section matching the user's locale (### en / ### ru blocks),
+    // and write a notice file shown for the next 2 launches.
     Process {
         id: fetchNoticeProc
         command: ["bash", "-c",
-            `curl -sf '${root._loaderApiUrl}' | `
-            + `python3 -c "`
-            + `import sys,json; d=json.load(sys.stdin); `
-            + `out={'showCount':2,'version':d.get('tag_name',''),'body':d.get('body','')}; `
-            + `print(json.dumps(out))`
-            + `" > '${root._noticeFile}'`
+            "set -e\n"
+            + "tmp=$(mktemp /tmp/qsmod.XXXX.py)\n"
+            + "cat > \"$tmp\" << 'PYEOF'\n"
+            + "import sys, json, os, re\n"
+            + "d = json.load(sys.stdin)\n"
+            + "body = d.get('body', '').replace('\\r', '')\n"
+            + "lang = os.environ.get('LANG', 'en').split('.')[0].lower()\n"
+            + "ls = lang.split('_')[0]\n"
+            + "secs = {}\n"
+            + "cur = None\n"
+            + "for line in body.split('\\n'):\n"
+            + "    m = re.match(r'^###\\s+(\\S+)', line)\n"
+            + "    if m:\n"
+            + "        cur = m.group(1).lower()\n"
+            + "        secs[cur] = []\n"
+            + "    elif cur is not None:\n"
+            + "        secs[cur].append(line)\n"
+            + "def g(k):\n"
+            + "    ll = list(secs.get(k, []))\n"
+            + "    while ll and not ll[-1].strip(): ll.pop()\n"
+            + "    return '\\n'.join(ll).strip()\n"
+            + "text = g(lang) or g(ls) or g('en') or body.strip()\n"
+            + "print(json.dumps({'showCount': 2, 'version': d.get('tag_name', ''), 'body': text}))\n"
+            + "PYEOF\n"
+            + `curl -sf '${root._loaderApiUrl}' | python3 "$tmp" > '${root._noticeFile}'\n`
+            + "rm -f \"$tmp\"\n"
         ]
         onExited: (code) => {
             if (code === 0) noticeFileView.reload();

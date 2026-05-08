@@ -14,6 +14,7 @@ ContentPage {
     component IconBtn: Rectangle {
         property string icon
         property color iconColor: Appearance.colors.colOnSurfaceVariant
+        property bool spinning: false
         signal clicked()
         implicitWidth: 30
         implicitHeight: 30
@@ -22,15 +23,22 @@ ContentPage {
             ? Appearance.colors.colSecondaryContainerHover
             : "transparent"
         MaterialSymbol {
+            id: iconSym
             anchors.centerIn: parent
-            text: parent.icon
+            text: parent.spinning ? "progress_activity" : parent.icon
             iconSize: 18
-            color: parent.iconColor
+            color: parent.spinning ? Appearance.colors.colPrimary : parent.iconColor
+            RotationAnimator on rotation {
+                from: 0; to: 360; duration: 1000
+                loops: Animation.Infinite
+                running: iconSym.parent.spinning
+            }
         }
         MouseArea {
             id: ma
             anchors.fill: parent
             hoverEnabled: true
+            enabled: !parent.spinning
             cursorShape: Qt.PointingHandCursor
             onClicked: parent.clicked()
         }
@@ -56,8 +64,9 @@ ContentPage {
                 onClicked: UserModules.openFolder()
             }
             RippleButtonWithIcon {
-                materialIcon: "refresh"
+                materialIcon: UserModules.refreshing ? "progress_activity" : "refresh"
                 mainText: Translation.tr("Refresh")
+                enabled: !UserModules.refreshing
                 onClicked: UserModules.refresh()
             }
             RippleButtonWithIcon {
@@ -71,13 +80,15 @@ ContentPage {
                 onClicked: UserModules.rebaselinePatches()
             }
             RippleButtonWithIcon {
-                materialIcon: "cloud_download"
+                materialIcon: UserModules.updatingModuleId !== "" ? "progress_activity" : "cloud_download"
                 mainText: Translation.tr("Update all")
+                enabled: UserModules.updatingModuleId === ""
                 onClicked: UserModules.updateAll()
             }
             RippleButtonWithIcon {
-                materialIcon: "system_update"
+                materialIcon: UserModules.loaderUpdating ? "progress_activity" : "system_update"
                 mainText: Translation.tr("Update loader")
+                enabled: !UserModules.loaderUpdating
                 onClicked: UserModules.updateLoader()
             }
         }
@@ -104,9 +115,9 @@ ContentPage {
                     wrapMode: TextEdit.NoWrap
                 }
                 RippleButtonWithIcon {
-                    materialIcon: "download"
+                    materialIcon: UserModules.installing ? "progress_activity" : "download"
                     mainText: Translation.tr("Install")
-                    enabled: installPathField.text.trim().length > 0
+                    enabled: installPathField.text.trim().length > 0 && !UserModules.installing
                     onClicked: {
                         UserModules.installFromUrlOrPath(installPathField.text);
                         installPathField.text = "";
@@ -277,6 +288,7 @@ ContentPage {
                     IconBtn {
                         visible: UserModules.hasUpdateUrl(row.modelData.id)
                         icon: "cloud_download"
+                        spinning: UserModules.updatingModuleId === row.modelData.id
                         onClicked: UserModules.updateModule(row.modelData.id)
                     }
                     IconBtn {
