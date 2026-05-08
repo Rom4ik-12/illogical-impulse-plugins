@@ -1,0 +1,15 @@
+{
+  "id": "notifications-click-action",
+  "name": "Notification: click invokes default action",
+  "description": "Left-click anywhere on a notification fires its 'default' action.",
+  "version": "1.0.0",
+  "author": "rom4ik",
+  "entry": "main.qml",
+  "patches": [
+    {
+      "file": "modules/common/widgets/NotificationItem.qml",
+      "find": "        anchors.leftMargin: root.xOffset\n\n        Behavior on anchors.leftMargin {",
+      "replace": "        anchors.leftMargin: root.xOffset\n\n        MouseArea {\n            anchors.fill: parent\n            acceptedButtons: Qt.LeftButton\n            onClicked: {\n                Notifications.attemptInvokeAction(notificationObject.notificationId, \"default\");\n            }\n        }\n\n        Behavior on anchors.leftMargin {"
+    }
+  ]
+}

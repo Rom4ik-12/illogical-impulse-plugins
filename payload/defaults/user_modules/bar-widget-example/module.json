@@ -1,0 +1,11 @@
+{
+  "id": "bar-widget-example",
+  "name": "Bar widget example (smiley)",
+  "description": "Adds a tiny smiley face to the bar to demonstrate barWidgets.",
+  "version": "1.0.0",
+  "author": "you",
+  "entry": "main.qml",
+  "barWidgets": [
+    { "source": "Smiley.qml" }
+  ]
+}

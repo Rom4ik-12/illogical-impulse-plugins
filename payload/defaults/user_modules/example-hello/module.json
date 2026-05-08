@@ -1,0 +1,8 @@
+{
+  "id": "example-hello",
+  "name": "Hello World",
+  "description": "A tiny example user module that registers a global shortcut and prints to the log.",
+  "version": "1.0.0",
+  "author": "you",
+  "entry": "main.qml"
+}

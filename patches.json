@@ -1,0 +1,82 @@
+{
+  "_comment": "Idempotent text patches applied to existing quickshell files. Each patch's 'find' must match exactly once; if 'skip_if_present' is already in the file, the patch is skipped.",
+  "patches": [
+    {
+      "file": "shell.qml",
+      "skip_if_present": "modules/userModules",
+      "find": "import \"modules/common\"\nimport \"services\"",
+      "replace": "import \"modules/common\"\nimport \"modules/userModules\"\nimport \"services\""
+    },
+    {
+      "file": "shell.qml",
+      "skip_if_present": "UserModulesHost {}",
+      "find": "    ReloadPopup {}",
+      "replace": "    ReloadPopup {}\n\n    // User-installed modules\n    UserModulesHost {}"
+    },
+    {
+      "file": "settings.qml",
+      "skip_if_present": "ModulesConfig.qml",
+      "find": "        {\n            name: Translation.tr(\"Advanced\"),\n            icon: \"construction\",\n            component: \"modules/settings/AdvancedConfig.qml\"\n        },",
+      "replace": "        {\n            name: Translation.tr(\"Advanced\"),\n            icon: \"construction\",\n            component: \"modules/settings/AdvancedConfig.qml\"\n        },\n        {\n            name: Translation.tr(\"Modules\"),\n            icon: \"extension\",\n            component: \"modules/settings/ModulesConfig.qml\"\n        },"
+    },
+    {
+      "file": "modules/common/Config.qml",
+      "skip_if_present": "property JsonObject userModules",
+      "find": "            property JsonObject hacks: JsonObject {\n                property int arbitraryRaceConditionDelay: 20 // milliseconds\n            }",
+      "replace": "            property JsonObject hacks: JsonObject {\n                property int arbitraryRaceConditionDelay: 20 // milliseconds\n            }\n\n            property JsonObject userModules: JsonObject {\n                property list<string> enabled: []\n                property string loaderUpdateUrl: \"https://github.com/Rom4ik-12/illogical-impulse-plugins/releases/latest/download/illogical-impulse-plugins.tar.gz\"\n            }"
+    },
+    {
+      "file": "modules/common/Directories.qml",
+      "skip_if_present": "userModulesDir",
+      "find": "    property string userActions: FileUtils.trimFileProtocol(`${Directories.shellConfig}/actions`)",
+      "replace": "    property string userActions: FileUtils.trimFileProtocol(`${Directories.shellConfig}/actions`)\n    property string userModulesDir: FileUtils.trimFileProtocol(`${Directories.shellConfig}/user_modules`)"
+    },
+    {
+      "file": "modules/common/Directories.qml",
+      "skip_if_present": "mkdir\", \"-p\", `${userModulesDir}",
+      "find": "        Quickshell.execDetached([\"mkdir\", \"-p\", `${userActions}`])",
+      "replace": "        Quickshell.execDetached([\"mkdir\", \"-p\", `${userActions}`])\n        Quickshell.execDetached([\"mkdir\", \"-p\", `${userModulesDir}`])"
+    },
+    {
+      "file": "modules/ii/bar/BarContent.qml",
+      "optional": true,
+      "skip_if_present": "qs.modules.userModules",
+      "find": "import qs.modules.common.widgets",
+      "replace": "import qs.modules.common.widgets\nimport qs.modules.userModules"
+    },
+    {
+      "file": "modules/ii/bar/BarContent.qml",
+      "optional": true,
+      "skip_if_present": "UserModulesBarSlot",
+      "find": "            SysTray {",
+      "replace": "            UserModulesBarSlot {\n                Layout.alignment: Qt.AlignVCenter\n            }\n\n            SysTray {"
+    }
+  ],
+  "translations": {
+    "ru_RU": {
+      "Modules": "Модули",
+      "User Modules": "Пользовательские модули",
+      "Drop a module folder or .qsmod file into the user modules folder, then enable it here. See MODULES.md for the format.": "Положи папку модуля или .qsmod-файл в папку пользовательских модулей и включи здесь. Формат описан в MODULES.md.",
+      "Open modules folder": "Открыть папку модулей",
+      "Refresh": "Обновить",
+      "Docs (MODULES.md)": "Документация (MODULES.md)",
+      "Rebaseline patches": "Пересоздать базу патчей",
+      "Treat current shell files as the new pristine baseline.\nUse after upgrading the upstream config.": "Считать текущие файлы шелла новой эталонной базой.\nПригодится после апгрейда апстрима.",
+      "Install from .qsmod or folder": "Установить из .qsmod или папки",
+      "Path to .qsmod / module folder": "Путь к .qsmod или папке модуля",
+      "Install": "Установить",
+      "Installed (%1)": "Установлено (%1)",
+      "No modules installed yet.": "Модулей пока нет.",
+      "by %1": "автор: %1",
+      "Export to ~/Downloads/<id>.qsmod": "Экспорт в ~/Downloads/<id>.qsmod",
+      "Open module folder": "Открыть папку модуля",
+      "Uninstall": "Удалить",
+      "Exported: %1": "Экспортировано: %1",
+      "Update all": "Обновить все",
+      "Install module": "Установка модуля",
+      "Choose file…": "Выбрать файл…",
+      "…or paste a path / URL (.qsmod, .zip, github.com/foo/bar)": "…или вставь путь / URL (.qsmod, .zip, github.com/foo/bar)",
+      "Update loader": "Обновить лоадер"
+    }
+  }
+}

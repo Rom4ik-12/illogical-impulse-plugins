@@ -1,0 +1,33 @@
+name: Release
+# Tag a commit with v* (e.g. v1.0.0) — the workflow builds the installer
+# tarball and creates a GitHub Release. The "latest" download URL stays
+# stable: github.com/<owner>/<repo>/releases/latest/download/illogical-impulse-plugins.tar.gz
+# That's what the in-shell "Update loader" button points at.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sanity check
+        run: make check
+
+      - name: Build tarball
+        run: make dist VERSION=${GITHUB_REF_NAME:-dev}
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: dist/illogical-impulse-plugins.tar.gz
+          generate_release_notes: true

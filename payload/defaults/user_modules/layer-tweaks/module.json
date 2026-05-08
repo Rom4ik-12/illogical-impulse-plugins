@@ -1,0 +1,35 @@
+{
+  "id": "layer-tweaks",
+  "name": "Layer Tweaks",
+  "description": "Pin Bar/SidebarLeft/SidebarRight to the Top wlr-layer and Dock/VerticalBar to Bottom.",
+  "version": "1.0.0",
+  "author": "rom4ik",
+  "entry": "main.qml",
+  "patches": [
+    {
+      "file": "modules/ii/bar/Bar.qml",
+      "find": "                WlrLayershell.namespace: \"quickshell:bar\"\n                implicitHeight:",
+      "replace": "                WlrLayershell.namespace: \"quickshell:bar\"\n                WlrLayershell.layer: WlrLayer.Top\n                implicitHeight:"
+    },
+    {
+      "file": "modules/ii/dock/Dock.qml",
+      "find": "            WlrLayershell.namespace: \"quickshell:dock\"\n            color: \"transparent\"",
+      "replace": "            WlrLayershell.namespace: \"quickshell:dock\"\n            WlrLayershell.layer: WlrLayer.Bottom\n            color: \"transparent\""
+    },
+    {
+      "file": "modules/ii/sidebarLeft/SidebarLeft.qml",
+      "find": "            WlrLayershell.namespace: \"quickshell:sidebarLeft\"\n            // Hyprland 0.49:",
+      "replace": "            WlrLayershell.namespace: \"quickshell:sidebarLeft\"\n            WlrLayershell.layer: WlrLayer.Top\n            // Hyprland 0.49:"
+    },
+    {
+      "file": "modules/ii/sidebarRight/SidebarRight.qml",
+      "find": "        WlrLayershell.namespace: \"quickshell:sidebarRight\"\n        WlrLayershell.keyboardFocus:",
+      "replace": "        WlrLayershell.namespace: \"quickshell:sidebarRight\"\n        WlrLayershell.layer: WlrLayer.Top\n        WlrLayershell.keyboardFocus:"
+    },
+    {
+      "file": "modules/ii/verticalBar/VerticalBar.qml",
+      "find": "                WlrLayershell.namespace: \"quickshell:verticalBar\"\n                // WlrLayershell.layer: WlrLayer.Overlay // TODO enable this when bar can hide when fullscreen\n                implicitWidth:",
+      "replace": "                WlrLayershell.namespace: \"quickshell:verticalBar\"\n                WlrLayershell.layer: WlrLayer.Bottom\n                implicitWidth:"
+    }
+  ]
+}

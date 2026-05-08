@@ -1,0 +1,8 @@
+{
+  "id": "sticky-note",
+  "name": "Sticky Note",
+  "description": "A draggable note that lives on the wallpaper. Text auto-saves; position persists per-screen.",
+  "version": "1.0.0",
+  "author": "rom4ik",
+  "entry": "main.qml"
+}

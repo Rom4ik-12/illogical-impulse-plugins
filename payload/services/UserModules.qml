@@ -1,0 +1,443 @@
+pragma Singleton
+pragma ComponentBehavior: Bound
+
+// User Modules service
+//
+// Scans `~/.config/illogical-impulse/user_modules/<id>/module.json` and
+// exposes the list as `modules`. Enabled module IDs come from
+// `Config.options.userModules.enabled`.
+//
+// A module folder layout:
+//   user_modules/<id>/module.json   (manifest)
+//   user_modules/<id>/main.qml      (entry, or whatever `entry` points to)
+//
+// See ~/.config/quickshell/MODULES.md for the full spec.
+
+import qs.modules.common
+import qs.modules.common.functions
+import QtQuick
+import Quickshell
+import Quickshell.Io
+
+Singleton {
+    id: root
+
+    // [{ id, dir, entry, manifest: {...} }, ...]
+    property var modules: []
+    property string lastError: ""
+    property string lastExportPath: ""
+    property string _modulesSignature: ""
+
+    // Flat list of bar widgets contributed by enabled modules:
+    // [{ moduleId, url }]. Drop a `UserModulesBarSlot {}` somewhere in the
+    // bar layout to render them.
+    readonly property var barWidgets: {
+        const out = [];
+        for (const m of root.modules) {
+            if (!root.isEnabled(m.id)) continue;
+            const widgets = (m.manifest && m.manifest.barWidgets) || [];
+            for (const w of widgets) {
+                if (!w || !w.source) continue;
+                out.push({ moduleId: m.id, url: `file://${m.dir}/${w.source}` });
+            }
+        }
+        return out;
+    }
+
+    readonly property string modulesDir: Directories.userModulesDir
+    readonly property string patchScript: `${Directories.scriptPath}/user_modules/patch.sh`
+    readonly property string fetchScript: `${Directories.scriptPath}/user_modules/fetch.sh`
+
+    function hasUpdateUrl(id) {
+        const m = root.modules.find(x => x.id === id);
+        return !!(m && m.manifest && typeof m.manifest.updateUrl === "string" && m.manifest.updateUrl.length > 0);
+    }
+
+    // Pop a "Open file" dialog and install whatever the user picks.
+    function pickAndInstall() {
+        const cmd = `if command -v zenity >/dev/null 2>&1; then `
+            + `  zenity --file-selection --title='Install module' `
+            + `    --file-filter='*.qsmod *.zip' --file-filter='All files | *' 2>/dev/null;`
+            + `elif command -v kdialog >/dev/null 2>&1; then `
+            + `  kdialog --getopenfilename "$HOME" '*.qsmod *.zip' 2>/dev/null;`
+            + `else echo ''; fi`;
+        pickInstallProc.command = ["bash", "-c", cmd];
+        pickInstallProc.running = true;
+    }
+
+    // Download (curl/git) the module's updateUrl and replace the local copy.
+    // If the module is currently enabled and has patches, we revert first,
+    // then re-apply after install.
+    function updateModule(id) {
+        const m = root.modules.find(x => x.id === id);
+        if (!m || !m.manifest.updateUrl) return;
+        const wasEnabled = root.isEnabled(id);
+        const hadPatches = root.hasPatches(id);
+        if (wasEnabled && hadPatches) {
+            // Disable to revert patches before files change
+            root.setEnabled(id, false);
+        }
+        updateProc.targetId = id;
+        updateProc.wasEnabled = wasEnabled;
+        updateProc.command = ["bash", root.fetchScript,
+            m.manifest.updateUrl, `/tmp/qsmod-update-${id}`];
+        updateProc.running = true;
+    }
+
+    function updateAll() {
+        for (const m of root.modules) {
+            if (root.hasUpdateUrl(m.id)) root.updateModule(m.id);
+        }
+    }
+
+    function isEnabled(id) {
+        const list = Config.options?.userModules?.enabled ?? [];
+        return list.indexOf(id) !== -1;
+    }
+
+    // True if the module declares any text patches in its manifest.
+    function hasPatches(id) {
+        const m = root.modules.find(x => x.id === id);
+        return !!(m && m.manifest && Array.isArray(m.manifest.patches) && m.manifest.patches.length > 0);
+    }
+
+    function _writeEnabled(id, enabled) {
+        const list = (Config.options.userModules.enabled ?? []).slice();
+        const idx = list.indexOf(id);
+        if (enabled && idx === -1) list.push(id);
+        if (!enabled && idx !== -1) list.splice(idx, 1);
+        Config.options.userModules.enabled = list;
+    }
+
+    function setEnabled(id, enabled) {
+        if (!hasPatches(id)) {
+            _writeEnabled(id, enabled);
+            return;
+        }
+        // Run the patch helper first; flip the config only on success.
+        patchProc.pendingId = id;
+        patchProc.pendingEnabled = enabled;
+        patchProc.command = ["bash", root.patchScript, enabled ? "enable" : "disable", id];
+        patchProc.running = true;
+    }
+
+    function rebaselinePatches() {
+        rebaselineProc.running = true;
+    }
+
+    // Self-update: download a new installer tarball / clone a repo and run
+    // its install.sh, replacing the loader files in this shell.
+    function updateLoader() {
+        const url = (Config.options?.userModules?.loaderUpdateUrl ?? "").trim();
+        if (url.length === 0) {
+            root.lastError = "Set userModules.loaderUpdateUrl in config.json first.";
+            return;
+        }
+        loaderUpdateProc.command = ["bash", "-c",
+              `set -e;`
+            + `url='${StringUtils.shellSingleQuoteEscape(url)}';`
+            + `tmp=$(mktemp -d -t qsmod-loader-XXXX);`
+            + `cd "$tmp";`
+            + `case "$url" in `
+            + `  *.tar.gz|*.tgz) curl -fsSL --retry 2 "$url" -o pkg.tgz; tar xzf pkg.tgz ;;`
+            + `  *.zip)          curl -fsSL --retry 2 "$url" -o pkg.zip; unzip -q pkg.zip ;;`
+            + `  https://github.com/*|git@github.com:*) git clone --depth 1 "$url" repo >/dev/null 2>&1 ;;`
+            + `  *)              curl -fsSL --retry 2 "$url" -o pkg.tgz; tar xzf pkg.tgz ;;`
+            + `esac;`
+            + `installer=$(find "$tmp" -maxdepth 5 -type f -name install.sh | head -1);`
+            + `[ -n "$installer" ] || { echo "no install.sh found in payload" >&2; exit 2; };`
+            + `bash "$installer";`
+            + `rm -rf "$tmp"`
+        ];
+        loaderUpdateProc.running = true;
+    }
+
+    function refresh() {
+        scanProc.running = true;
+    }
+
+    function openFolder() {
+        Quickshell.execDetached(["xdg-open", root.modulesDir]);
+    }
+
+    function openModuleFolder(id) {
+        Quickshell.execDetached(["xdg-open", `${root.modulesDir}/${id}`]);
+    }
+
+    function uninstall(id) {
+        if (!id || id.indexOf("/") !== -1 || id.indexOf("..") !== -1) return;
+        // If the module patched files, revert before deleting it so the
+        // patch helper can read the manifest.
+        if (root.isEnabled(id)) {
+            root.setEnabled(id, false);
+        }
+        Quickshell.execDetached(["bash", "-c",
+            `rm -rf '${StringUtils.shellSingleQuoteEscape(root.modulesDir)}/${StringUtils.shellSingleQuoteEscape(id)}'`]);
+        rescanTimer.restart();
+    }
+
+    // Pops a "Save As" dialog (zenity/kdialog) and zips the module folder
+    // to the chosen path. If neither tool is available, falls back to
+    // ~/Downloads/<id>.qsmod. Sets `lastExportPath` on success.
+    function exportModule(id, destPath) {
+        const fallback = `${FileUtils.trimFileProtocol(Directories.downloads)}/${id}.qsmod`;
+        if (destPath && destPath.length > 0) {
+            // Skip the picker — caller already knows where to put it.
+            const dst = FileUtils.trimFileProtocol(destPath);
+            exportProc.command = ["bash", "-c",
+                  `mkdir -p '${StringUtils.shellSingleQuoteEscape(dst.substring(0, dst.lastIndexOf("/")))}' && `
+                + `cd '${StringUtils.shellSingleQuoteEscape(root.modulesDir)}' && `
+                + `zip -qr '${StringUtils.shellSingleQuoteEscape(dst)}' `
+                + `'${StringUtils.shellSingleQuoteEscape(id)}' && `
+                + `printf %s '${StringUtils.shellSingleQuoteEscape(dst)}'`];
+            exportProc.running = true;
+            return;
+        }
+        // Picker + zip in one go. The script prints the final path on stdout.
+        const cmd = `set -e;`
+            + `id='${StringUtils.shellSingleQuoteEscape(id)}';`
+            + `default='${StringUtils.shellSingleQuoteEscape(fallback)}';`
+            + `target='';`
+            + `if command -v zenity >/dev/null 2>&1; then `
+            + `  target=$(zenity --file-selection --save --confirm-overwrite `
+            + `    --title="Export $id" --filename="$default" --file-filter='*.qsmod' 2>/dev/null) || exit 0;`
+            + `elif command -v kdialog >/dev/null 2>&1; then `
+            + `  target=$(kdialog --getsavefilename "$default" '*.qsmod' 2>/dev/null) || exit 0;`
+            + `fi;`
+            + `target="\${target:-$default}";`
+            + `mkdir -p "$(dirname "$target")";`
+            + `cd '${StringUtils.shellSingleQuoteEscape(root.modulesDir)}' && zip -qr "$target" "$id" >/dev/null;`
+            + `printf %s "$target"`;
+        exportProc.command = ["bash", "-c", cmd];
+        exportProc.running = true;
+    }
+
+    // Detect URL-style sources and route them through the fetcher.
+    function installFromUrlOrPath(source) {
+        const s = (source || "").trim();
+        if (s.length === 0) return;
+        if (/^https?:\/\//.test(s) || /^git@/.test(s)) {
+            urlInstallProc.command = ["bash", root.fetchScript, s,
+                `/tmp/qsmod-install-${Date.now()}`];
+            urlInstallProc.running = true;
+        } else {
+            root.install(s);
+        }
+    }
+
+    // Install from a .qsmod (zip) or a plain folder. Source path may use file:// .
+    function install(sourcePath) {
+        const src = FileUtils.trimFileProtocol(sourcePath).trim();
+        if (src.length === 0) return;
+        const cmd = `set -e; `
+            + `src='${StringUtils.shellSingleQuoteEscape(src)}'; `
+            + `dst='${StringUtils.shellSingleQuoteEscape(root.modulesDir)}'; `
+            + `mkdir -p "$dst"; `
+            + `tmp=$(mktemp -d); `
+            + `if [ -d "$src" ]; then cp -r "$src" "$tmp/"; `
+            + `else unzip -q "$src" -d "$tmp"; fi; `
+            // Find any folder containing a module.json; copy each into dst
+            + `find "$tmp" -name module.json -print0 | while IFS= read -r -d '' m; do `
+            + `  d=$(dirname "$m"); n=$(basename "$d"); `
+            + `  rm -rf "$dst/$n"; cp -r "$d" "$dst/$n"; `
+            + `done; `
+            + `rm -rf "$tmp"`;
+        installProc.command = ["bash", "-c", cmd];
+        installProc.running = true;
+    }
+
+    Component.onCompleted: refresh()
+
+    Connections {
+        target: Config
+        function onReadyChanged() { if (Config.ready) root.refresh(); }
+    }
+
+    Timer {
+        id: rescanTimer
+        interval: 250
+        repeat: false
+        onTriggered: root.refresh()
+    }
+
+    // Builds a single JSON array describing every installed module.
+    Process {
+        id: scanProc
+        command: ["bash", "-c",
+            `dir='${StringUtils.shellSingleQuoteEscape(root.modulesDir)}';`
+            + `mkdir -p "$dir";`
+            + `first=1; printf '[';`
+            + `for d in "$dir"/*/; do `
+            + `  [ -d "$d" ] || continue;`
+            + `  m="$d/module.json"; [ -f "$m" ] || continue;`
+            + `  id=$(basename "$d");`
+            + `  if [ $first -eq 0 ]; then printf ','; fi; first=0;`
+            + `  printf '{"_id":"%s","_dir":"%s","manifest":' "$id" "\${d%/}";`
+            + `  cat "$m"; printf '}';`
+            + `done;`
+            + `printf ']'`
+        ]
+        stdout: StdioCollector {
+            id: scanCollector
+            onStreamFinished: {
+                try {
+                    const arr = JSON.parse(scanCollector.text || "[]");
+                    const out = [];
+                    for (const item of arr) {
+                        const m = item.manifest || {};
+                        const entry = (m.entry && m.entry.length > 0) ? m.entry : "main.qml";
+                        out.push({
+                            id: m.id || item._id,
+                            dir: item._dir,
+                            entry: entry,
+                            entryUrl: `file://${item._dir}/${entry}`,
+                            manifest: m
+                        });
+                    }
+                    // Only reassign when content actually changes — otherwise
+                    // every poll would re-instantiate every loaded module.
+                    const newSig = JSON.stringify(out);
+                    if (newSig !== root._modulesSignature) {
+                        root._modulesSignature = newSig;
+                        root.modules = out;
+                    }
+                    root.lastError = "";
+                } catch (e) {
+                    root.lastError = `Failed to parse modules: ${e}`;
+                    console.warn("[UserModules]", root.lastError, scanCollector.text);
+                    root.modules = [];
+                }
+            }
+        }
+    }
+
+    Process {
+        id: installProc
+        onExited: (code) => {
+            if (code !== 0) console.warn("[UserModules] install failed, exit", code);
+            rescanTimer.restart();
+        }
+    }
+
+    Process {
+        id: exportProc
+        stdout: StdioCollector { id: exportPathBuf }
+        onExited: (code) => {
+            const out = (exportPathBuf.text || "").trim();
+            if (code === 0 && out.length > 0) {
+                root.lastError = "";
+                root.lastExportPath = out;
+                console.log("[UserModules] exported to", out);
+            } else if (code === 0 && out.length === 0) {
+                // User pressed Cancel in the picker — silent no-op.
+            } else {
+                root.lastError = `Export failed (code ${code}). Is 'zip' installed?`;
+                console.warn("[UserModules]", root.lastError);
+            }
+        }
+    }
+
+    Process {
+        id: patchProc
+        property string pendingId: ""
+        property bool pendingEnabled: false
+        property string stderrBuf: ""
+        stderr: StdioCollector { id: patchStderr }
+        onExited: (code) => {
+            if (code === 0) {
+                root.lastError = "";
+                root._writeEnabled(patchProc.pendingId, patchProc.pendingEnabled);
+            } else {
+                root.lastError = `Patch ${patchProc.pendingEnabled ? "apply" : "revert"} failed for `
+                    + `${patchProc.pendingId}: ${patchStderr.text || "exit " + code}`;
+                console.warn("[UserModules]", root.lastError);
+            }
+        }
+    }
+
+    Process {
+        id: urlInstallProc
+        stdout: StdioCollector { id: urlInstallBuf }
+        stderr: StdioCollector { id: urlInstallErrBuf }
+        onExited: (code) => {
+            const path = (urlInstallBuf.text || "").trim();
+            if (code === 0 && path.length > 0) {
+                root.install(path);
+            } else {
+                root.lastError = `Fetch failed: ${urlInstallErrBuf.text || "exit " + code}`;
+            }
+        }
+    }
+
+    Process {
+        id: pickInstallProc
+        stdout: StdioCollector { id: pickedInstallBuf }
+        onExited: (code) => {
+            const path = (pickedInstallBuf.text || "").trim();
+            if (path.length > 0) root.install(path);
+        }
+    }
+
+    Process {
+        id: updateProc
+        property string targetId: ""
+        property bool wasEnabled: false
+        stdout: StdioCollector { id: updateBuf }
+        stderr: StdioCollector { id: updateErrBuf }
+        onExited: (code) => {
+            const path = (updateBuf.text || "").trim();
+            if (code !== 0 || path.length === 0) {
+                root.lastError = `Update failed for ${updateProc.targetId}: `
+                    + (updateErrBuf.text || `exit ${code}`);
+                console.warn("[UserModules]", root.lastError);
+                return;
+            }
+            // Reuse the install path. Rescan happens after install too.
+            root.install(path);
+            // Re-enable after a short delay so the rescan picks up the new files first.
+            if (updateProc.wasEnabled) reEnableTimer.start();
+        }
+    }
+    Timer {
+        id: reEnableTimer
+        interval: 600
+        repeat: false
+        onTriggered: {
+            if (updateProc.targetId && !root.isEnabled(updateProc.targetId)) {
+                root.setEnabled(updateProc.targetId, true);
+            }
+        }
+    }
+
+    Process {
+        id: loaderUpdateProc
+        stdout: StdioCollector { id: loaderOutBuf }
+        stderr: StdioCollector { id: loaderErrBuf }
+        onExited: (code) => {
+            if (code === 0) {
+                root.lastError = "";
+                console.log("[UserModules] loader updated", loaderOutBuf.text);
+            } else {
+                root.lastError = `Loader update failed: ${loaderErrBuf.text || "exit " + code}`;
+                console.warn("[UserModules]", root.lastError);
+            }
+        }
+    }
+
+    Process {
+        id: rebaselineProc
+        command: ["bash", root.patchScript, "rebaseline"]
+        onExited: (code) => {
+            root.lastError = code === 0 ? "" : `Rebaseline failed (exit ${code})`;
+        }
+    }
+
+    IpcHandler {
+        target: "userModules"
+        function refresh(): void { root.refresh() }
+        function enable(id: string): void { root.setEnabled(id, true) }
+        function disable(id: string): void { root.setEnabled(id, false) }
+        function install(path: string): void { root.install(path) }
+        function uninstall(id: string): void { root.uninstall(id) }
+    }
+}

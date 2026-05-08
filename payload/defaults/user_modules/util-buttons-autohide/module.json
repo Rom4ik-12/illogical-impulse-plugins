@@ -1,0 +1,15 @@
+{
+  "id": "util-buttons-autohide",
+  "name": "Bar: hide UtilButtons when empty",
+  "description": "Collapses the bar's util-buttons row when there are no enabled buttons.",
+  "version": "1.0.0",
+  "author": "rom4ik",
+  "entry": "main.qml",
+  "patches": [
+    {
+      "file": "modules/ii/bar/UtilButtons.qml",
+      "find": "    property bool borderless: Config.options.bar.borderless\n    implicitWidth: rowLayout.implicitWidth + rowLayout.spacing * 2\n    implicitHeight: rowLayout.implicitHeight",
+      "replace": "    property bool borderless: Config.options.bar.borderless\n    readonly property bool hasAnyButton: rowLayout.implicitWidth > 0\n    visible: hasAnyButton\n    implicitWidth: hasAnyButton ? rowLayout.implicitWidth + rowLayout.spacing * 2 : 0\n    implicitHeight: rowLayout.implicitHeight"
+    }
+  ]
+}

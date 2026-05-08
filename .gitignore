@@ -1,0 +1,6 @@
+dist/
+*.tar.gz
+*.zip
+*.qsmod
+__pycache__/
+*.pyc
