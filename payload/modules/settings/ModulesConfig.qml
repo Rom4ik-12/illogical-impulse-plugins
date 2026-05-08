@@ -151,14 +151,19 @@ ContentPage {
                 radius: Appearance.rounding.small
                 color: Appearance.m3colors.m3surfaceContainer
                 implicitHeight: rowLayout.implicitHeight + 16
+                    + (settingsLoader.active && settingsLoader.implicitHeight > 0
+                        ? settingsLoader.implicitHeight + 12 : 0)
+
+                property bool settingsOpen: false
 
                 RowLayout {
                     id: rowLayout
-                    anchors.fill: parent
+                    anchors.top: parent.top
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.topMargin: 8
                     anchors.leftMargin: 12
                     anchors.rightMargin: 8
-                    anchors.topMargin: 8
-                    anchors.bottomMargin: 8
                     spacing: 10
 
                     ColumnLayout {
@@ -209,6 +214,14 @@ ContentPage {
                         onClicked: UserModules.setEnabled(row.modelData.id, !UserModules.isEnabled(row.modelData.id))
                     }
                     IconBtn {
+                        visible: !!row.modelData.manifest.settingsPage
+                        icon: "settings"
+                        iconColor: row.settingsOpen
+                            ? Appearance.colors.colPrimary
+                            : Appearance.colors.colOnSurfaceVariant
+                        onClicked: row.settingsOpen = !row.settingsOpen
+                    }
+                    IconBtn {
                         visible: UserModules.hasUpdateUrl(row.modelData.id)
                         icon: "cloud_download"
                         onClicked: UserModules.updateModule(row.modelData.id)
@@ -224,6 +237,27 @@ ContentPage {
                     IconBtn {
                         icon: "delete"
                         onClicked: UserModules.uninstall(row.modelData.id)
+                    }
+                }
+
+                Loader {
+                    id: settingsLoader
+                    anchors.top: rowLayout.bottom
+                    anchors.topMargin: 8
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    active: row.settingsOpen && !!row.modelData.manifest.settingsPage
+                    source: active
+                        ? `file://${row.modelData.dir}/${row.modelData.manifest.settingsPage}`
+                        : ""
+                    onLoaded: {
+                        if (!item) return;
+                        if (item.hasOwnProperty("moduleDataDir"))
+                            item.moduleDataDir = UserModules.moduleDataDir(row.modelData.id);
+                        if (item.hasOwnProperty("moduleId"))
+                            item.moduleId = row.modelData.id;
                     }
                 }
             }

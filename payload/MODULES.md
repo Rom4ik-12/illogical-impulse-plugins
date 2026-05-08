@@ -44,7 +44,9 @@ The list of enabled module IDs is stored in the shell config under
 | `description`| no       | One short line.                                              |
 | `version`    | no       | Free-form, e.g. `1.0.0`.                                     |
 | `author`     | no       | Your handle.                                                 |
+| `link`       | no       | One URL (repo, docs…). Author becomes a clickable link.      |
 | `entry`      | no       | QML file to load. Defaults to `main.qml`.                    |
+| `settingsPage`| no      | QML file with the module's settings UI. Shown inline in Settings → Modules. |
 | `updateUrl`  | no       | Where Settings → Modules can pull a fresh copy from. See "Auto-update" below. |
 
 ---
@@ -123,6 +125,52 @@ qs ipc call userModules install /path/to/foo.qsmod
 qs ipc call userModules enable  my-module
 qs ipc call userModules disable my-module
 qs ipc call userModules refresh
+```
+
+---
+
+## Module settings page
+
+Add `"settingsPage": "Settings.qml"` to your manifest. A gear icon appears
+next to the module row in Settings → Modules. Clicking it expands your QML
+inline. The loader passes two properties to your root element:
+
+| Property | Type | Description |
+|---|---|---|
+| `moduleDataDir` | `string` | Writable directory for your config/state files |
+| `moduleId` | `string` | The module's id |
+
+Minimal example `Settings.qml`:
+
+```qml
+import QtQuick
+import QtQuick.Layouts
+import Quickshell.Io
+import qs.modules.common
+import qs.modules.common.widgets
+
+ColumnLayout {
+    property string moduleDataDir
+    property string moduleId
+
+    FileView {
+        id: cfg
+        path: moduleDataDir + "/config.json"
+        watchChanges: true
+    }
+
+    ConfigRow {
+        label: "My option"
+        StyledSwitch {
+            checked: JSON.parse(cfg.text || "{}").myOption ?? false
+            onClicked: {
+                const c = JSON.parse(cfg.text || "{}");
+                c.myOption = !c.myOption;
+                cfg.setText(JSON.stringify(c, null, 2));
+            }
+        }
+    }
+}
 ```
 
 ---

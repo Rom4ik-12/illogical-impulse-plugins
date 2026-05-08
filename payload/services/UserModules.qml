@@ -101,6 +101,21 @@ Singleton {
         return !!(m && m.manifest && Array.isArray(m.manifest.patches) && m.manifest.patches.length > 0);
     }
 
+    // True if the module provides a settings page QML.
+    function hasSettingsPage(id) {
+        const m = root.modules.find(x => x.id === id);
+        return !!(m && m.manifest && m.manifest.settingsPage);
+    }
+
+    // Returns the per-module writable data directory and ensures it exists.
+    // Modules can use this path for their own config/state files.
+    function moduleDataDir(id) {
+        const path = `${Directories.shellConfig}/user_modules_state/${id}`;
+        mkdirProc.command = ["bash", "-c", `mkdir -p '${path}'`];
+        mkdirProc.running = true;
+        return path;
+    }
+
     function _writeEnabled(id, enabled) {
         const list = (Config.options.userModules.enabled ?? []).slice();
         const idx = list.indexOf(id);
@@ -430,6 +445,10 @@ Singleton {
         onExited: (code) => {
             root.lastError = code === 0 ? "" : `Rebaseline failed (exit ${code})`;
         }
+    }
+
+    Process {
+        id: mkdirProc
     }
 
     IpcHandler {
