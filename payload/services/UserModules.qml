@@ -118,17 +118,19 @@ Singleton {
     function isNewVersion(id) {
         const m = root.modules.find(x => x.id === id);
         if (!m || !m.manifest.changelog) return false;
-        const seen = (Config.options.userModules.seenVersions || {})[id];
-        return seen !== (m.manifest.version || "");
+        let seen = {};
+        try { seen = JSON.parse(Config.options.userModules.seenVersionsJson || "{}"); } catch(e) {}
+        return seen[id] !== (m.manifest.version || "");
     }
 
     // Mark the current version of a module as seen.
     function markSeen(id) {
         const m = root.modules.find(x => x.id === id);
         if (!m) return;
-        const sv = Object.assign({}, Config.options.userModules.seenVersions || {});
-        sv[id] = m.manifest.version || "";
-        Config.options.userModules.seenVersions = sv;
+        let seen = {};
+        try { seen = JSON.parse(Config.options.userModules.seenVersionsJson || "{}"); } catch(e) {}
+        seen[id] = m.manifest.version || "";
+        Config.options.userModules.seenVersionsJson = JSON.stringify(seen);
     }
 
     // Returns the per-module writable data directory and ensures it exists.
