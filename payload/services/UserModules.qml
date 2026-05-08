@@ -118,19 +118,17 @@ Singleton {
     function isNewVersion(id) {
         const m = root.modules.find(x => x.id === id);
         if (!m || !m.manifest.changelog) return false;
-        let seen = {};
-        try { seen = JSON.parse(Config.options.userModules.seenVersionsJson || "{}"); } catch(e) {}
-        return seen[id] !== (m.manifest.version || "");
+        const seen = (Config.options.userModules.seenVersions || {})[id];
+        return seen !== (m.manifest.version || "");
     }
 
     // Mark the current version of a module as seen.
     function markSeen(id) {
         const m = root.modules.find(x => x.id === id);
         if (!m) return;
-        let seen = {};
-        try { seen = JSON.parse(Config.options.userModules.seenVersionsJson || "{}"); } catch(e) {}
-        seen[id] = m.manifest.version || "";
-        Config.options.userModules.seenVersionsJson = JSON.stringify(seen);
+        const sv = Object.assign({}, Config.options.userModules.seenVersions || {});
+        sv[id] = m.manifest.version || "";
+        Config.options.userModules.seenVersions = sv;
     }
 
     // Returns the per-module writable data directory and ensures it exists.
@@ -465,7 +463,9 @@ Singleton {
             if (code === 0) {
                 root.lastError = "";
                 console.log("[UserModules] loader updated", loaderOutBuf.text);
-                fetchNoticeProc.running = true;
+                // Notice file was already written inside the bash script before install.sh ran.
+                // Just reload it so the banner shows if quickshell didn't restart.
+                noticeFileView.reload();
             } else {
                 root.lastError = `Loader update failed: ${loaderErrBuf.text || "exit " + code}`;
                 console.warn("[UserModules]", root.lastError);
@@ -473,50 +473,12 @@ Singleton {
         }
     }
 
-    // After a successful loader update, fetch release notes from GitHub and
-    // write a notice file so the banner shows for the next 2 launches.
+    // Release notes notice — written inside loaderUpdateProc before install.sh runs,
+    // so it survives even if install.sh restarts quickshell.
     readonly property string _noticeFile:
         `${Directories.shellConfig}/user_modules_state/.loader_notice.json`
     readonly property string _loaderApiUrl:
         "https://api.github.com/repos/Rom4ik-12/illogical-impulse-plugins/releases/latest"
-
-    // After a successful loader update, fetch release notes from GitHub,
-    // pick the section matching the user's locale (### en / ### ru blocks),
-    // and write a notice file shown for the next 2 launches.
-    Process {
-        id: fetchNoticeProc
-        command: ["bash", "-c",
-            "set -e\n"
-            + "tmp=$(mktemp /tmp/qsmod.XXXX.py)\n"
-            + "cat > \"$tmp\" << 'PYEOF'\n"
-            + "import sys, json, os, re\n"
-            + "d = json.load(sys.stdin)\n"
-            + "body = d.get('body', '').replace('\\r', '')\n"
-            + "lang = os.environ.get('LANG', 'en').split('.')[0].lower()\n"
-            + "ls = lang.split('_')[0]\n"
-            + "secs = {}\n"
-            + "cur = None\n"
-            + "for line in body.split('\\n'):\n"
-            + "    m = re.match(r'^###\\s+(\\S+)', line)\n"
-            + "    if m:\n"
-            + "        cur = m.group(1).lower()\n"
-            + "        secs[cur] = []\n"
-            + "    elif cur is not None:\n"
-            + "        secs[cur].append(line)\n"
-            + "def g(k):\n"
-            + "    ll = list(secs.get(k, []))\n"
-            + "    while ll and not ll[-1].strip(): ll.pop()\n"
-            + "    return '\\n'.join(ll).strip()\n"
-            + "text = g(lang) or g(ls) or g('en') or body.strip()\n"
-            + "print(json.dumps({'showCount': 2, 'version': d.get('tag_name', ''), 'body': text}))\n"
-            + "PYEOF\n"
-            + `curl -sf '${root._loaderApiUrl}' | python3 "$tmp" > '${root._noticeFile}'\n`
-            + "rm -f \"$tmp\"\n"
-        ]
-        onExited: (code) => {
-            if (code === 0) noticeFileView.reload();
-        }
-    }
 
     // Read notice on startup and expose to UI. Decrement showCount each launch.
     property var loaderNotice: null
