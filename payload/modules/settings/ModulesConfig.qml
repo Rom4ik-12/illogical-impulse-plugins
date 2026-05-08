@@ -151,6 +151,7 @@ ContentPage {
                 radius: Appearance.rounding.small
                 color: Appearance.m3colors.m3surfaceContainer
                 implicitHeight: rowLayout.implicitHeight + 16
+                    + (changelogBanner.visible ? changelogBanner.implicitHeight + 8 : 0)
                     + (settingsLoader.active && settingsLoader.implicitHeight > 0
                         ? settingsLoader.implicitHeight + 12 : 0)
 
@@ -243,9 +244,53 @@ ContentPage {
                     }
                 }
 
+                // Changelog banner — shown when module version wasn't seen yet
+                ColumnLayout {
+                    id: changelogBanner
+                    visible: UserModules.isNewVersion(row.modelData.id)
+                    anchors.top: rowLayout.bottom
+                    anchors.topMargin: 4
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    spacing: 2
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: Translation.tr("Updated to %1").arg(row.modelData.manifest.version || "?")
+                            font.weight: Font.Medium
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: Appearance.colors.colPrimary
+                        }
+                        IconBtn {
+                            icon: "close"
+                            implicitWidth: 22
+                            implicitHeight: 22
+                            onClicked: UserModules.markSeen(row.modelData.id)
+                        }
+                    }
+
+                    Repeater {
+                        model: Array.isArray(row.modelData.manifest.changelog)
+                            ? row.modelData.manifest.changelog : []
+                        delegate: StyledText {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            text: "• " + modelData
+                            color: Appearance.colors.colSubtext
+                            wrapMode: Text.Wrap
+                            font.pixelSize: Appearance.font.pixelSize.small
+                        }
+                    }
+                }
+
                 Loader {
                     id: settingsLoader
-                    anchors.top: rowLayout.bottom
+                    anchors.top: changelogBanner.visible
+                        ? changelogBanner.bottom : rowLayout.bottom
                     anchors.topMargin: 8
                     anchors.left: parent.left
                     anchors.right: parent.right

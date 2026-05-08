@@ -107,6 +107,23 @@ Singleton {
         return !!(m && m.manifest && m.manifest.settingsPage);
     }
 
+    // True if module has a changelog and current version wasn't seen yet.
+    function isNewVersion(id) {
+        const m = root.modules.find(x => x.id === id);
+        if (!m || !m.manifest.changelog) return false;
+        const seen = (Config.options.userModules.seenVersions || {})[id];
+        return seen !== (m.manifest.version || "");
+    }
+
+    // Mark the current version of a module as seen.
+    function markSeen(id) {
+        const m = root.modules.find(x => x.id === id);
+        if (!m) return;
+        const sv = Object.assign({}, Config.options.userModules.seenVersions || {});
+        sv[id] = m.manifest.version || "";
+        Config.options.userModules.seenVersions = sv;
+    }
+
     // Returns the per-module writable data directory and ensures it exists.
     // Modules can use this path for their own config/state files.
     function moduleDataDir(id) {
