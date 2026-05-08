@@ -4,5 +4,6 @@
   "description": "A draggable note that lives on the wallpaper. Text auto-saves; position persists per-screen.",
   "version": "1.0.0",
   "author": "rom4ik",
+  "link": "https://github.com/Rom4ik-12/illogical-impulse-plugins",
   "entry": "main.qml"
 }

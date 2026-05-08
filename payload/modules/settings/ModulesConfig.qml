@@ -150,12 +150,15 @@ ContentPage {
                 Layout.fillWidth: true
                 radius: Appearance.rounding.small
                 color: Appearance.m3colors.m3surfaceContainer
-                implicitHeight: 56
+                implicitHeight: rowLayout.implicitHeight + 16
 
                 RowLayout {
+                    id: rowLayout
                     anchors.fill: parent
                     anchors.leftMargin: 12
                     anchors.rightMargin: 8
+                    anchors.topMargin: 8
+                    anchors.bottomMargin: 8
                     spacing: 10
 
                     ColumnLayout {
@@ -177,6 +180,14 @@ ContentPage {
                             Layout.fillWidth: true
                             font.pixelSize: Appearance.font.pixelSize.small
                         }
+                        StyledText {
+                            visible: !!row.modelData.manifest.author
+                            text: row.modelData.manifest.author ? Translation.tr("by %1").arg(row.modelData.manifest.author) : ""
+                            color: Appearance.colors.colSubtext
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                            font.pixelSize: Appearance.font.pixelSize.small
+                        }
                     }
 
                     StyledSwitch {
@@ -184,6 +195,11 @@ ContentPage {
                         onClicked: UserModules.setEnabled(row.modelData.id, !UserModules.isEnabled(row.modelData.id))
                     }
 
+                    IconBtn {
+                        visible: !!row.modelData.manifest.link
+                        icon: "link"
+                        onClicked: Qt.openUrlExternally(row.modelData.manifest.link)
+                    }
                     IconBtn {
                         visible: UserModules.hasUpdateUrl(row.modelData.id)
                         icon: "cloud_download"
