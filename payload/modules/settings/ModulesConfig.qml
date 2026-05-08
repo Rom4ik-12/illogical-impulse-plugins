@@ -180,25 +180,33 @@ ContentPage {
                             Layout.fillWidth: true
                             font.pixelSize: Appearance.font.pixelSize.small
                         }
-                        StyledText {
+                        Item {
                             visible: !!row.modelData.manifest.author
-                            text: row.modelData.manifest.author ? Translation.tr("by %1").arg(row.modelData.manifest.author) : ""
-                            color: Appearance.colors.colSubtext
-                            elide: Text.ElideRight
                             Layout.fillWidth: true
-                            font.pixelSize: Appearance.font.pixelSize.small
+                            implicitHeight: authorText.implicitHeight
+                            StyledText {
+                                id: authorText
+                                width: parent.width
+                                text: row.modelData.manifest.author ? Translation.tr("by %1").arg(row.modelData.manifest.author) : ""
+                                color: !!row.modelData.manifest.link
+                                    ? Appearance.colors.colPrimary
+                                    : Appearance.colors.colSubtext
+                                font.underline: !!row.modelData.manifest.link
+                                elide: Text.ElideRight
+                                font.pixelSize: Appearance.font.pixelSize.small
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                visible: !!row.modelData.manifest.link
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Qt.openUrlExternally(row.modelData.manifest.link)
+                            }
                         }
                     }
 
                     StyledSwitch {
                         checked: UserModules.isEnabled(row.modelData.id)
                         onClicked: UserModules.setEnabled(row.modelData.id, !UserModules.isEnabled(row.modelData.id))
-                    }
-
-                    IconBtn {
-                        visible: !!row.modelData.manifest.link
-                        icon: "link"
-                        onClicked: Qt.openUrlExternally(row.modelData.manifest.link)
                     }
                     IconBtn {
                         visible: UserModules.hasUpdateUrl(row.modelData.id)
