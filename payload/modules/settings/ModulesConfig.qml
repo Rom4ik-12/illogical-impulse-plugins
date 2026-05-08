@@ -120,6 +120,55 @@ ContentPage {
         icon: "deployed_code"
         title: Translation.tr("Installed (%1)").arg(UserModules.modules.length)
 
+        // Loader update notice — shown for 2 launches after "Update loader"
+        Rectangle {
+            visible: UserModules.loaderNotice !== null
+            Layout.fillWidth: true
+            radius: Appearance.rounding.small
+            color: Appearance.colors.colSecondaryContainer
+            implicitHeight: noticeCol.implicitHeight + 16
+
+            ColumnLayout {
+                id: noticeCol
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.margins: 12
+                spacing: 4
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    MaterialSymbol {
+                        text: "new_releases"
+                        iconSize: 18
+                        color: Appearance.colors.colPrimary
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Translation.tr("Loader updated to %1").arg(
+                            UserModules.loaderNotice?.version ?? "")
+                        font.weight: Font.Medium
+                        color: Appearance.colors.colPrimary
+                    }
+                    IconBtn {
+                        icon: "close"
+                        implicitWidth: 22
+                        implicitHeight: 22
+                        onClicked: UserModules.loaderNotice = null
+                    }
+                }
+
+                StyledText {
+                    visible: (UserModules.loaderNotice?.body ?? "").length > 0
+                    Layout.fillWidth: true
+                    text: UserModules.loaderNotice?.body ?? ""
+                    color: Appearance.colors.colOnSecondaryContainer
+                    wrapMode: Text.Wrap
+                    font.pixelSize: Appearance.font.pixelSize.small
+                }
+            }
+        }
+
         StyledText {
             visible: UserModules.modules.length === 0
             text: Translation.tr("No modules installed yet.")

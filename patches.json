@@ -78,7 +78,8 @@
       "…or paste a path / URL (.qsmod, .zip, github.com/foo/bar)": "…или вставь путь / URL (.qsmod, .zip, github.com/foo/bar)",
       "Update loader": "Обновить лоадер",
       "Updated to %1": "Обновлено до %1",
-      "Module settings": "Настройки модуля"
+      "Module settings": "Настройки модуля",
+      "Loader updated to %1": "Лоадер обновлён до %1"
     }
   }
 }

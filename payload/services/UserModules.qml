@@ -449,12 +449,61 @@ Singleton {
             if (code === 0) {
                 root.lastError = "";
                 console.log("[UserModules] loader updated", loaderOutBuf.text);
+                fetchNoticeProc.running = true;
             } else {
                 root.lastError = `Loader update failed: ${loaderErrBuf.text || "exit " + code}`;
                 console.warn("[UserModules]", root.lastError);
             }
         }
     }
+
+    // After a successful loader update, fetch release notes from GitHub and
+    // write a notice file so the banner shows for the next 2 launches.
+    readonly property string _noticeFile:
+        `${Directories.shellConfig}/user_modules_state/.loader_notice.json`
+    readonly property string _loaderApiUrl:
+        "https://api.github.com/repos/Rom4ik-12/illogical-impulse-plugins/releases/latest"
+
+    Process {
+        id: fetchNoticeProc
+        command: ["bash", "-c",
+            `curl -sf '${root._loaderApiUrl}' | `
+            + `python3 -c "`
+            + `import sys,json; d=json.load(sys.stdin); `
+            + `out={'showCount':2,'version':d.get('tag_name',''),'body':d.get('body','')}; `
+            + `print(json.dumps(out))`
+            + `" > '${root._noticeFile}'`
+        ]
+        onExited: (code) => {
+            if (code === 0) noticeFileView.reload();
+        }
+    }
+
+    // Read notice on startup and expose to UI. Decrement showCount each launch.
+    property var loaderNotice: null
+
+    FileView {
+        id: noticeFileView
+        path: root._noticeFile
+        watchChanges: false
+        onLoaded: {
+            try {
+                const n = JSON.parse(noticeFileView.text || "{}");
+                if ((n.showCount || 0) > 0) {
+                    root.loaderNotice = n;
+                    n.showCount--;
+                    noticeWriteProc.command = [
+                        "bash", "-c",
+                        `echo '${JSON.stringify(n).replace(/'/g, "'\\''")}' > '${root._noticeFile}'`
+                    ];
+                    noticeWriteProc.running = true;
+                }
+            } catch(e) {}
+        }
+        onLoadFailed: {}
+    }
+
+    Process { id: noticeWriteProc }
 
     Process {
         id: rebaselineProc
