@@ -4,7 +4,7 @@
 
 Adds a user-module system to a quickshell config based on illogical-impulse.
 
-![Modules settings page](screen.jpg)
+![Modules settings page](screen_en.png)
 
 - A new **Settings → Modules** page (enable/disable, install/export, uninstall).
 - A `services/UserModules.qml` singleton that scans
