@@ -1,0 +1,13 @@
+{
+  "id": "bar-label",
+  "name": "Bar label",
+  "description": "Customisable text label in the bar. Demonstrates module settings pages.",
+  "version": "1.0.0",
+  "author": "Rom4ik-12",
+  "link": "https://github.com/Rom4ik-12/illogical-impulse-plugins",
+  "entry": "main.qml",
+  "settingsPage": "Settings.qml",
+  "barWidgets": [
+    { "source": "BarLabel.qml" }
+  ]
+}

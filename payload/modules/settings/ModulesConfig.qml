@@ -166,22 +166,29 @@ ContentPage {
                     anchors.rightMargin: 8
                     spacing: 10
 
+                    StyledSwitch {
+                        Layout.alignment: Qt.AlignVCenter
+                        checked: UserModules.isEnabled(row.modelData.id)
+                        onClicked: UserModules.setEnabled(row.modelData.id, !UserModules.isEnabled(row.modelData.id))
+                    }
+
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 1
+                        Layout.alignment: Qt.AlignVCenter
+                        spacing: 2
                         StyledText {
                             text: (row.modelData.manifest.name || row.modelData.id)
                                 + (row.modelData.manifest.version ? "  v" + row.modelData.manifest.version : "")
                             font.weight: Font.Medium
                             color: Appearance.colors.colOnSecondaryContainer
-                            elide: Text.ElideRight
+                            wrapMode: Text.Wrap
                             Layout.fillWidth: true
                         }
                         StyledText {
                             visible: !!row.modelData.manifest.description
                             text: row.modelData.manifest.description || ""
                             color: Appearance.colors.colSubtext
-                            elide: Text.ElideRight
+                            wrapMode: Text.Wrap
                             Layout.fillWidth: true
                             font.pixelSize: Appearance.font.pixelSize.small
                         }
@@ -197,7 +204,7 @@ ContentPage {
                                     ? Appearance.colors.colPrimary
                                     : Appearance.colors.colSubtext
                                 font.underline: !!row.modelData.manifest.link
-                                elide: Text.ElideRight
+                                wrapMode: Text.Wrap
                                 font.pixelSize: Appearance.font.pixelSize.small
                             }
                             MouseArea {
@@ -209,10 +216,6 @@ ContentPage {
                         }
                     }
 
-                    StyledSwitch {
-                        checked: UserModules.isEnabled(row.modelData.id)
-                        onClicked: UserModules.setEnabled(row.modelData.id, !UserModules.isEnabled(row.modelData.id))
-                    }
                     IconBtn {
                         visible: !!row.modelData.manifest.settingsPage
                         icon: "settings"
