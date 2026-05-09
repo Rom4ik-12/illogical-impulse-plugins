@@ -44,6 +44,34 @@ ContentPage {
         }
     }
 
+    // Action button + small caption beneath. Used in the top row and the
+    // Developer subsection so every button has a one-line description.
+    component ActionTile: ColumnLayout {
+        id: tile
+        property string icon
+        property string label
+        property string caption
+        property bool spinning: false
+        signal clicked()
+        spacing: 2
+        Layout.preferredWidth: 200
+
+        RippleButtonWithIcon {
+            Layout.fillWidth: true
+            materialIcon: tile.spinning ? "progress_activity" : tile.icon
+            mainText: tile.label
+            enabled: tile.enabled
+            onClicked: tile.clicked()
+        }
+        StyledText {
+            Layout.fillWidth: true
+            text: tile.caption
+            wrapMode: Text.Wrap
+            color: Appearance.colors.colSubtext
+            font.pixelSize: Appearance.font.pixelSize.small
+        }
+    }
+
     ContentSection {
         icon: "extension"
         title: Translation.tr("User Modules")
@@ -59,37 +87,19 @@ ContentPage {
             Layout.fillWidth: true
             spacing: 4
             RippleButtonWithIcon {
-                materialIcon: "folder_open"
-                mainText: Translation.tr("Open modules folder")
-                onClicked: UserModules.openFolder()
-            }
-            RippleButtonWithIcon {
-                materialIcon: UserModules.refreshing ? "progress_activity" : "refresh"
-                mainText: Translation.tr("Refresh")
-                enabled: !UserModules.refreshing
-                onClicked: UserModules.refresh()
-            }
-            RippleButtonWithIcon {
-                materialIcon: "menu_book"
-                mainText: Translation.tr("Docs (MODULES.md)")
-                onClicked: Qt.openUrlExternally("file://" + Quickshell.shellPath("MODULES.md"))
-            }
-            RippleButtonWithIcon {
-                materialIcon: "restart_alt"
-                mainText: Translation.tr("Rebaseline patches")
-                onClicked: UserModules.rebaselinePatches()
-            }
-            RippleButtonWithIcon {
-                materialIcon: UserModules.updatingModuleId !== "" ? "progress_activity" : "cloud_download"
-                mainText: Translation.tr("Update all")
-                enabled: UserModules.updatingModuleId === ""
-                onClicked: UserModules.updateAll()
-            }
-            RippleButtonWithIcon {
                 materialIcon: UserModules.loaderUpdating ? "progress_activity" : "system_update"
-                mainText: Translation.tr("Update loader")
+                mainText: Translation.tr("Update modules system")
                 enabled: !UserModules.loaderUpdating
                 onClicked: UserModules.updateLoader()
+            }
+            RippleButtonWithIcon {
+                materialIcon: (UserModules.updatingModuleId !== ""
+                    || (UserModules._updateQueue && UserModules._updateQueue.length > 0))
+                    ? "progress_activity" : "cloud_download"
+                mainText: Translation.tr("Update all plugins")
+                enabled: UserModules.updatingModuleId === ""
+                    && (!UserModules._updateQueue || UserModules._updateQueue.length === 0)
+                onClicked: UserModules.updateAll()
             }
         }
 
@@ -100,8 +110,9 @@ ContentPage {
                 Layout.fillWidth: true
                 spacing: 4
                 RippleButtonWithIcon {
-                    materialIcon: "folder_open"
+                    materialIcon: UserModules.installing ? "progress_activity" : "folder_open"
                     mainText: Translation.tr("Choose file…")
+                    enabled: !UserModules.installing
                     onClicked: UserModules.pickAndInstall()
                 }
             }
@@ -125,60 +136,95 @@ ContentPage {
                 }
             }
         }
+
+        // Collapsible "Developer" subsection — rare/maintenance actions
+        // (open folder, rescan, docs, rebaseline patches).
+        ContentSubsection {
+            id: devSubsection
+            property bool open: false
+            Layout.fillWidth: true
+
+            Rectangle {
+                Layout.fillWidth: true
+                radius: Appearance.rounding.small
+                color: devHeaderMa.containsMouse
+                    ? Appearance.colors.colSecondaryContainerHover
+                    : "transparent"
+                implicitHeight: devHeaderRow.implicitHeight + 8
+
+                RowLayout {
+                    id: devHeaderRow
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 4
+                    anchors.rightMargin: 4
+                    spacing: 6
+                    MaterialSymbol {
+                        text: "code"
+                        iconSize: 18
+                        color: Appearance.colors.colSubtext
+                    }
+                    StyledText {
+                        Layout.fillWidth: true
+                        text: Translation.tr("Developer")
+                        color: Appearance.colors.colSubtext
+                        font.weight: Font.Medium
+                    }
+                    MaterialSymbol {
+                        text: devSubsection.open ? "expand_less" : "expand_more"
+                        iconSize: 20
+                        color: Appearance.colors.colSubtext
+                    }
+                }
+                MouseArea {
+                    id: devHeaderMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: devSubsection.open = !devSubsection.open
+                }
+            }
+
+            Flow {
+                visible: devSubsection.open
+                Layout.fillWidth: true
+                spacing: 8
+                ActionTile {
+                    icon: "folder_open"
+                    label: Translation.tr("Open modules folder")
+                    caption: Translation.tr("Open the user_modules folder in the file manager")
+                    onClicked: UserModules.openFolder()
+                }
+                ActionTile {
+                    icon: "refresh"
+                    label: Translation.tr("Refresh")
+                    caption: Translation.tr("Re-scan the modules folder for manual changes")
+                    spinning: UserModules.refreshing
+                    enabled: !UserModules.refreshing
+                    onClicked: UserModules.refresh()
+                }
+                ActionTile {
+                    icon: "menu_book"
+                    label: Translation.tr("Docs (MODULES.md)")
+                    caption: Translation.tr("Open the module format documentation")
+                    onClicked: Qt.openUrlExternally("file://" + Quickshell.shellPath("MODULES.md"))
+                }
+                ActionTile {
+                    icon: "restart_alt"
+                    label: Translation.tr("Rebaseline patches")
+                    caption: Translation.tr("Capture current shell files as the patch baseline")
+                    spinning: UserModules.rebaselining
+                    enabled: !UserModules.rebaselining
+                    onClicked: UserModules.rebaselinePatches()
+                }
+            }
+        }
     }
 
     ContentSection {
         icon: "deployed_code"
         title: Translation.tr("Installed (%1)").arg(UserModules.modules.length)
-
-        // Loader update notice — shown for 2 launches after "Update loader"
-        Rectangle {
-            visible: UserModules.loaderNotice !== null
-            Layout.fillWidth: true
-            radius: Appearance.rounding.small
-            color: Appearance.colors.colSecondaryContainer
-            implicitHeight: noticeCol.implicitHeight + 16
-
-            ColumnLayout {
-                id: noticeCol
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.margins: 12
-                spacing: 4
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    MaterialSymbol {
-                        text: "new_releases"
-                        iconSize: 18
-                        color: Appearance.colors.colPrimary
-                    }
-                    StyledText {
-                        Layout.fillWidth: true
-                        text: Translation.tr("Loader updated to %1").arg(
-                            UserModules.loaderNotice?.version ?? "")
-                        font.weight: Font.Medium
-                        color: Appearance.colors.colPrimary
-                    }
-                    IconBtn {
-                        icon: "close"
-                        implicitWidth: 22
-                        implicitHeight: 22
-                        onClicked: UserModules.loaderNotice = null
-                    }
-                }
-
-                StyledText {
-                    visible: (UserModules.loaderNotice?.body ?? "").length > 0
-                    Layout.fillWidth: true
-                    text: UserModules.loaderNotice?.body ?? ""
-                    color: Appearance.colors.colOnSecondaryContainer
-                    wrapMode: Text.Wrap
-                    font.pixelSize: Appearance.font.pixelSize.small
-                }
-            }
-        }
 
         StyledText {
             visible: UserModules.modules.length === 0
@@ -370,6 +416,24 @@ ContentPage {
                     }
                 }
             }
+        }
+    }
+
+    // Always-visible loader update changelog at bottom — shown in subdued
+    // text. Replaced whenever the loader self-updates.
+    ContentSection {
+        visible: UserModules.loaderNotice !== null
+        icon: "new_releases"
+        title: Translation.tr("What's new — loader %1").arg(
+            UserModules.loaderNotice?.version ?? "")
+
+        StyledText {
+            visible: (UserModules.loaderNotice?.body ?? "").length > 0
+            Layout.fillWidth: true
+            text: UserModules.loaderNotice?.body ?? ""
+            color: Appearance.colors.colSubtext
+            wrapMode: Text.Wrap
+            font.pixelSize: Appearance.font.pixelSize.small
         }
     }
 }

@@ -32,7 +32,9 @@ Singleton {
     property bool loaderUpdating: false
     property bool refreshing: false
     property bool installing: false
+    property bool rebaselining: false
     property string updatingModuleId: ""
+    property var _updateQueue: []
 
     // Flat list of bar widgets contributed by enabled modules:
     // [{ moduleId, url }]. Drop a `UserModulesBarSlot {}` somewhere in the
@@ -61,6 +63,7 @@ Singleton {
 
     // Pop a "Open file" dialog and install whatever the user picks.
     function pickAndInstall() {
+        root.installing = true;
         const cmd = `if command -v zenity >/dev/null 2>&1; then `
             + `  zenity --file-selection --title='Install module' `
             + `    --file-filter='*.qsmod *.zip' --file-filter='All files | *' 2>/dev/null;`
@@ -92,9 +95,21 @@ Singleton {
     }
 
     function updateAll() {
+        const q = [];
         for (const m of root.modules) {
-            if (root.hasUpdateUrl(m.id)) root.updateModule(m.id);
+            if (root.hasUpdateUrl(m.id)) q.push(m.id);
         }
+        root._updateQueue = q;
+        root._runNextUpdate();
+    }
+
+    function _runNextUpdate() {
+        if (root.updatingModuleId !== "" || root.installing) return;
+        if (!root._updateQueue || root._updateQueue.length === 0) return;
+        const q = root._updateQueue.slice();
+        const next = q.shift();
+        root._updateQueue = q;
+        root.updateModule(next);
     }
 
     function isEnabled(id) {
@@ -115,20 +130,24 @@ Singleton {
     }
 
     // True if module has a changelog and current version wasn't seen yet.
+    // Storage is a JSON-encoded string in Config (`seenVersionsJson`) because
+    // JsonAdapter segfaults on `property var` for nested objects.
     function isNewVersion(id) {
         const m = root.modules.find(x => x.id === id);
         if (!m || !m.manifest.changelog) return false;
-        const seen = (Config.options.userModules.seenVersions || {})[id];
-        return seen !== (m.manifest.version || "");
+        let seen = {};
+        try { seen = JSON.parse(Config.options.userModules.seenVersionsJson || "{}"); } catch(e) {}
+        return seen[id] !== (m.manifest.version || "");
     }
 
     // Mark the current version of a module as seen.
     function markSeen(id) {
         const m = root.modules.find(x => x.id === id);
         if (!m) return;
-        const sv = Object.assign({}, Config.options.userModules.seenVersions || {});
-        sv[id] = m.manifest.version || "";
-        Config.options.userModules.seenVersions = sv;
+        let seen = {};
+        try { seen = JSON.parse(Config.options.userModules.seenVersionsJson || "{}"); } catch(e) {}
+        seen[id] = m.manifest.version || "";
+        Config.options.userModules.seenVersionsJson = JSON.stringify(seen);
     }
 
     // Returns the per-module writable data directory and ensures it exists.
@@ -161,6 +180,7 @@ Singleton {
     }
 
     function rebaselinePatches() {
+        root.rebaselining = true;
         rebaselineProc.running = true;
     }
 
@@ -207,14 +227,28 @@ Singleton {
 
     function uninstall(id) {
         if (!id || id.indexOf("/") !== -1 || id.indexOf("..") !== -1) return;
-        // If the module patched files, revert before deleting it so the
-        // patch helper can read the manifest.
-        if (root.isEnabled(id)) {
+        const m = root.modules.find(x => x.id === id);
+        // Resolve the actual directory: legacy installs may sit in a folder
+        // named differently from manifest.id (e.g. "foo-main"), so trust the
+        // scanned dir over a synthesized path.
+        const base = root.modulesDir.replace(/\/+$/, "");
+        let dir = (m && m.dir) ? m.dir : `${base}/${id}`;
+        if (dir.indexOf(base + "/") !== 0) return; // path-escape guard
+
+        uninstallProc.targetDir = dir;
+        uninstallProc.targetId = id;
+
+        if (root.hasPatches(id) && root.isEnabled(id)) {
+            // Revert patches first; rm fires from patchProc.onExited.
+            uninstallProc.pendingPatchRevert = true;
             root.setEnabled(id, false);
+        } else {
+            if (root.isEnabled(id)) root._writeEnabled(id, false);
+            uninstallProc.pendingPatchRevert = false;
+            uninstallProc.command = ["bash", "-c",
+                `rm -rf '${StringUtils.shellSingleQuoteEscape(dir)}'`];
+            uninstallProc.running = true;
         }
-        Quickshell.execDetached(["bash", "-c",
-            `rm -rf '${StringUtils.shellSingleQuoteEscape(root.modulesDir)}/${StringUtils.shellSingleQuoteEscape(id)}'`]);
-        rescanTimer.restart();
     }
 
     // Pops a "Save As" dialog (zenity/kdialog) and zips the module folder
@@ -257,6 +291,7 @@ Singleton {
     function installFromUrlOrPath(source) {
         const s = (source || "").trim();
         if (s.length === 0) return;
+        root.installing = true;
         if (/^https?:\/\//.test(s) || /^git@/.test(s)) {
             urlInstallProc.command = ["bash", root.fetchScript, s,
                 `/tmp/qsmod-install-${Date.now()}`];
@@ -278,9 +313,15 @@ Singleton {
             + `tmp=$(mktemp -d); `
             + `if [ -d "$src" ]; then cp -r "$src" "$tmp/"; `
             + `else unzip -q "$src" -d "$tmp"; fi; `
-            // Find any folder containing a module.json; copy each into dst
+            // Find any folder containing a module.json; copy each into dst.
+            // Use the manifest's `id` as the destination folder name so that
+            // re-installing a module (e.g. from github-default-branch zip
+            // named "foo-main") overwrites the existing folder instead of
+            // creating a parallel copy.
             + `find "$tmp" -name module.json -print0 | while IFS= read -r -d '' m; do `
-            + `  d=$(dirname "$m"); n=$(basename "$d"); `
+            + `  d=$(dirname "$m"); `
+            + `  n=$(python3 -c "import json,sys,re; mid=str(json.load(open(sys.argv[1])).get('id','')).strip(); print(mid if re.match(r'^[A-Za-z0-9._-]+$', mid) else '')" "$m" 2>/dev/null); `
+            + `  [ -z "$n" ] && n=$(basename "$d"); `
             + `  rm -rf "$dst/$n"; cp -r "$d" "$dst/$n"; `
             + `done; `
             + `rm -rf "$tmp"`;
@@ -360,6 +401,7 @@ Singleton {
             if (code !== 0) console.warn("[UserModules] install failed, exit", code);
             root.installing = false;
             rescanTimer.restart();
+            Qt.callLater(root._runNextUpdate);
         }
     }
 
@@ -396,6 +438,31 @@ Singleton {
                     + `${patchProc.pendingId}: ${patchStderr.text || "exit " + code}`;
                 console.warn("[UserModules]", root.lastError);
             }
+            // If an uninstall was waiting on patch revert, fire the rm now —
+            // even on revert failure, the user wants the module gone.
+            if (uninstallProc.pendingPatchRevert
+                && patchProc.pendingId === uninstallProc.targetId) {
+                uninstallProc.pendingPatchRevert = false;
+                uninstallProc.command = ["bash", "-c",
+                    `rm -rf '${StringUtils.shellSingleQuoteEscape(uninstallProc.targetDir)}'`];
+                uninstallProc.running = true;
+            }
+        }
+    }
+
+    Process {
+        id: uninstallProc
+        property string targetDir: ""
+        property string targetId: ""
+        property bool pendingPatchRevert: false
+        onExited: (code) => {
+            if (code !== 0) {
+                root.lastError = `Uninstall failed (rm exit ${code}) for ${uninstallProc.targetId}`;
+                console.warn("[UserModules]", root.lastError);
+            }
+            uninstallProc.targetDir = "";
+            uninstallProc.targetId = "";
+            rescanTimer.restart();
         }
     }
 
@@ -408,6 +475,7 @@ Singleton {
             if (code === 0 && path.length > 0) {
                 root.install(path);
             } else {
+                root.installing = false;
                 root.lastError = `Fetch failed: ${urlInstallErrBuf.text || "exit " + code}`;
             }
         }
@@ -419,6 +487,7 @@ Singleton {
         onExited: (code) => {
             const path = (pickedInstallBuf.text || "").trim();
             if (path.length > 0) root.install(path);
+            else root.installing = false;
         }
     }
 
@@ -435,6 +504,7 @@ Singleton {
                 root.lastError = `Update failed for ${updateProc.targetId}: `
                     + (updateErrBuf.text || `exit ${code}`);
                 console.warn("[UserModules]", root.lastError);
+                Qt.callLater(root._runNextUpdate);
                 return;
             }
             // Reuse the install path. Rescan happens after install too.
@@ -463,9 +533,7 @@ Singleton {
             if (code === 0) {
                 root.lastError = "";
                 console.log("[UserModules] loader updated", loaderOutBuf.text);
-                // Notice file was already written inside the bash script before install.sh ran.
-                // Just reload it so the banner shows if quickshell didn't restart.
-                noticeFileView.reload();
+                fetchNoticeProc.running = true;
             } else {
                 root.lastError = `Loader update failed: ${loaderErrBuf.text || "exit " + code}`;
                 console.warn("[UserModules]", root.lastError);
@@ -473,12 +541,50 @@ Singleton {
         }
     }
 
-    // Release notes notice — written inside loaderUpdateProc before install.sh runs,
-    // so it survives even if install.sh restarts quickshell.
+    // After a successful loader update, fetch release notes from GitHub and
+    // write a notice file so the banner shows for the next 2 launches.
     readonly property string _noticeFile:
         `${Directories.shellConfig}/user_modules_state/.loader_notice.json`
     readonly property string _loaderApiUrl:
         "https://api.github.com/repos/Rom4ik-12/illogical-impulse-plugins/releases/latest"
+
+    // After a successful loader update, fetch release notes from GitHub,
+    // pick the section matching the user's locale (### en / ### ru blocks),
+    // and write a notice file shown for the next 2 launches.
+    Process {
+        id: fetchNoticeProc
+        command: ["bash", "-c",
+            "set -e\n"
+            + "tmp=$(mktemp /tmp/qsmod.XXXX.py)\n"
+            + "cat > \"$tmp\" << 'PYEOF'\n"
+            + "import sys, json, os, re\n"
+            + "d = json.load(sys.stdin)\n"
+            + "body = d.get('body', '').replace('\\r', '')\n"
+            + "lang = os.environ.get('LANG', 'en').split('.')[0].lower()\n"
+            + "ls = lang.split('_')[0]\n"
+            + "secs = {}\n"
+            + "cur = None\n"
+            + "for line in body.split('\\n'):\n"
+            + "    m = re.match(r'^###\\s+(\\S+)', line)\n"
+            + "    if m:\n"
+            + "        cur = m.group(1).lower()\n"
+            + "        secs[cur] = []\n"
+            + "    elif cur is not None:\n"
+            + "        secs[cur].append(line)\n"
+            + "def g(k):\n"
+            + "    ll = list(secs.get(k, []))\n"
+            + "    while ll and not ll[-1].strip(): ll.pop()\n"
+            + "    return '\\n'.join(ll).strip()\n"
+            + "text = g(lang) or g(ls) or g('en') or body.strip()\n"
+            + "print(json.dumps({'showCount': 2, 'version': d.get('tag_name', ''), 'body': text}))\n"
+            + "PYEOF\n"
+            + `curl -sf '${root._loaderApiUrl}' | python3 "$tmp" > '${root._noticeFile}'\n`
+            + "rm -f \"$tmp\"\n"
+        ]
+        onExited: (code) => {
+            if (code === 0) noticeFileView.reload();
+        }
+    }
 
     // Read notice on startup and expose to UI. Decrement showCount each launch.
     property var loaderNotice: null
@@ -486,30 +592,21 @@ Singleton {
     FileView {
         id: noticeFileView
         path: root._noticeFile
-        watchChanges: false
+        watchChanges: true
         onLoaded: {
             try {
                 const n = JSON.parse(noticeFileView.text || "{}");
-                if ((n.showCount || 0) > 0) {
-                    root.loaderNotice = n;
-                    n.showCount--;
-                    noticeWriteProc.command = [
-                        "bash", "-c",
-                        `echo '${JSON.stringify(n).replace(/'/g, "'\\''")}' > '${root._noticeFile}'`
-                    ];
-                    noticeWriteProc.running = true;
-                }
+                if (n && (n.version || n.body)) root.loaderNotice = n;
             } catch(e) {}
         }
         onLoadFailed: {}
     }
 
-    Process { id: noticeWriteProc }
-
     Process {
         id: rebaselineProc
         command: ["bash", root.patchScript, "rebaseline"]
         onExited: (code) => {
+            root.rebaselining = false;
             root.lastError = code === 0 ? "" : `Rebaseline failed (exit ${code})`;
         }
     }
