@@ -23,7 +23,7 @@
       "file": "modules/common/Config.qml",
       "skip_if_present": "property JsonObject userModules",
       "find": "            property JsonObject hacks: JsonObject {\n                property int arbitraryRaceConditionDelay: 20 // milliseconds\n            }",
-      "replace": "            property JsonObject hacks: JsonObject {\n                property int arbitraryRaceConditionDelay: 20 // milliseconds\n            }\n\n            property JsonObject userModules: JsonObject {\n                property list<string> enabled: []\n                property string loaderUpdateUrl: \"https://github.com/Rom4ik-12/illogical-impulse-plugins/releases/latest/download/illogical-impulse-plugins.tar.gz\"\n                property string seenVersionsJson: \"{}\"\n            }"
+      "replace": "            property JsonObject hacks: JsonObject {\n                property int arbitraryRaceConditionDelay: 20 // milliseconds\n            }\n\n            property JsonObject userModules: JsonObject {\n                property list<string> enabled: []\n                property string loaderUpdateUrl: \"https://github.com/Rom4ik-12/illogical-impulse-plugins/releases/latest/download/illogical-impulse-plugins.tar.gz\"\n                property string seenVersionsJson: \"{}\"\n                property string notesJson: \"{}\"\n            }"
     },
     {
       "file": "modules/common/Directories.qml",

@@ -35,6 +35,9 @@ def migrate_user_modules_block(text: str) -> tuple[str, list[str]]:
     if "seenVersionsJson" not in body:
         new_body += f'\n{indent}property string seenVersionsJson: "{{}}"'
         added.append("seenVersionsJson")
+    if "notesJson" not in body:
+        new_body += f'\n{indent}property string notesJson: "{{}}"'
+        added.append("notesJson")
     # Strip the legacy broken `property var seenVersions: ...` line — it
     # caused JsonAdapter segfaults on nested-object deserialisation.
     new_body, n_drop = re.subn(

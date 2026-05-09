@@ -39,7 +39,7 @@ Singleton {
     // Current loader version. install.sh ships a VERSION file alongside the
     // payload; we read it on startup. Drives compatibility checks against a
     // module manifest's `requiresLoader` field.
-    property string loaderVersion: "1.4.0"
+    property string loaderVersion: "1.4.1"
 
     FileView {
         id: loaderVersionFile
@@ -97,6 +97,27 @@ Singleton {
     function hasUpdateUrl(id) {
         const m = root.modules.find(x => x.id === id);
         return !!(m && m.manifest && typeof m.manifest.updateUrl === "string" && m.manifest.updateUrl.length > 0);
+    }
+
+    // Read/write per-module user notes. Storage is a JSON-encoded string in
+    // Config (`notesJson`) for the same reason as seenVersionsJson — plain
+    // `var` segfaults in JsonAdapter on nested-object reload.
+    function getNote(id) {
+        let map = {};
+        try { map = JSON.parse(Config.options.userModules.notesJson || "{}"); } catch(e) {}
+        return map[id] || "";
+    }
+
+    function setNote(id, text) {
+        let map = {};
+        try { map = JSON.parse(Config.options.userModules.notesJson || "{}"); } catch(e) {}
+        const t = (text || "").trim();
+        if (t.length === 0) {
+            delete map[id];
+        } else {
+            map[id] = t;
+        }
+        Config.options.userModules.notesJson = JSON.stringify(map);
     }
 
     // Pop a "Open file" dialog and install whatever the user picks.

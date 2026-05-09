@@ -258,10 +258,12 @@ ContentPage {
                 color: Appearance.m3colors.m3surfaceContainer
                 implicitHeight: rowLayout.implicitHeight + 16
                     + (changelogBanner.visible ? changelogBanner.implicitHeight + 8 : 0)
+                    + (noteBox.visible ? noteBox.implicitHeight + 8 : 0)
                     + (settingsLoader.active && settingsLoader.implicitHeight > 0
                         ? settingsLoader.implicitHeight + 12 : 0)
 
                 property bool settingsOpen: false
+                property bool notesOpen: false
 
                 RowLayout {
                     id: rowLayout
@@ -324,6 +326,30 @@ ContentPage {
                                         .arg(row.modelData.manifest.requiresLoader)
                             }
                         }
+                        // Author-declared known issues — yellow bullet list.
+                        Repeater {
+                            model: Array.isArray(row.modelData.manifest.knownIssues)
+                                ? row.modelData.manifest.knownIssues : []
+                            delegate: RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: 4
+                                MaterialSymbol {
+                                    text: "bug_report"
+                                    iconSize: 14
+                                    color: Appearance.m3colors.m3error
+                                    Layout.alignment: Qt.AlignTop
+                                    Layout.topMargin: 2
+                                }
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.Wrap
+                                    color: Appearance.m3colors.m3error
+                                    font.pixelSize: Appearance.font.pixelSize.small
+                                    text: modelData
+                                }
+                            }
+                        }
                         Item {
                             visible: !!row.modelData.manifest.author
                             Layout.fillWidth: true
@@ -348,6 +374,13 @@ ContentPage {
                         }
                     }
 
+                    IconBtn {
+                        icon: "sticky_note_2"
+                        iconColor: row.notesOpen || UserModules.getNote(row.modelData.id).length > 0
+                            ? Appearance.colors.colPrimary
+                            : Appearance.colors.colOnSurfaceVariant
+                        onClicked: row.notesOpen = !row.notesOpen
+                    }
                     IconBtn {
                         visible: !!row.modelData.manifest.settingsPage
                         icon: "settings"
@@ -419,10 +452,42 @@ ContentPage {
                     }
                 }
 
-                Loader {
-                    id: settingsLoader
+                // Personal note for the module — toggle the sticky-note
+                // icon to expand. Auto-saves when focus is lost.
+                ColumnLayout {
+                    id: noteBox
+                    visible: row.notesOpen
+                        || UserModules.getNote(row.modelData.id).length > 0
                     anchors.top: changelogBanner.visible
                         ? changelogBanner.bottom : rowLayout.bottom
+                    anchors.topMargin: 4
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    spacing: 2
+
+                    ContentSubsectionLabel {
+                        text: Translation.tr("Your note")
+                    }
+                    MaterialTextArea {
+                        id: noteField
+                        Layout.fillWidth: true
+                        wrapMode: TextEdit.Wrap
+                        placeholderText: Translation.tr("Doesn't work, has bugs, breaks on …")
+                        text: UserModules.getNote(row.modelData.id)
+                        onEditingFinished: {
+                            UserModules.setNote(row.modelData.id, noteField.text)
+                        }
+                    }
+                }
+
+                Loader {
+                    id: settingsLoader
+                    anchors.top: noteBox.visible
+                        ? noteBox.bottom
+                        : (changelogBanner.visible
+                            ? changelogBanner.bottom : rowLayout.bottom)
                     anchors.topMargin: 8
                     anchors.left: parent.left
                     anchors.right: parent.right
