@@ -8,12 +8,56 @@ overwriting values the user already set.
 """
 
 from __future__ import annotations
-import json, os, sys
+import json, os, re, sys
 from pathlib import Path
+
+LOADER_URL = "https://github.com/Rom4ik-12/illogical-impulse-plugins/releases/latest/download/illogical-impulse-plugins.tar.gz"
+
+def migrate_user_modules_block(text: str) -> tuple[str, list[str]]:
+    """Ensure the userModules JsonObject contains loaderUpdateUrl and
+    seenVersionsJson. Old installs only had `enabled`, so without this an
+    update would leave them stuck on "Set userModules.loaderUpdateUrl…" or
+    a JsonAdapter segfault from a stale `seenVersions: var` property.
+    Returns (new_text, list-of-added-property-names)."""
+    m = re.search(
+        r"(property JsonObject userModules: JsonObject \{)(?P<body>[^{}]*?)(?P<tail>\n\s*\})",
+        text, flags=re.S)
+    if not m:
+        return text, []
+    body = m.group("body")
+    indent_match = re.search(r"\n([ \t]+)property\b", body)
+    indent = indent_match.group(1) if indent_match else "                "
+    added: list[str] = []
+    new_body = body
+    if "loaderUpdateUrl" not in body:
+        new_body += f'\n{indent}property string loaderUpdateUrl: "{LOADER_URL}"'
+        added.append("loaderUpdateUrl")
+    if "seenVersionsJson" not in body:
+        new_body += f'\n{indent}property string seenVersionsJson: "{{}}"'
+        added.append("seenVersionsJson")
+    # Strip the legacy broken `property var seenVersions: ...` line — it
+    # caused JsonAdapter segfaults on nested-object deserialisation.
+    new_body, n_drop = re.subn(
+        r"\n[ \t]+property var seenVersions:[^\n]*", "", new_body)
+    if n_drop:
+        added.append("-seenVersions")
+    if new_body == body:
+        return text, []
+    return text[:m.start()] + m.group(1) + new_body + m.group("tail") + text[m.end():], added
 
 def apply(target: Path, payload_dir: Path, patches_file: Path) -> int:
     spec = json.loads(patches_file.read_text())
     rc = 0
+
+    # Run schema migrations on Config.qml first — these handle older installs
+    # whose userModules block was patched in before new properties existed.
+    cfg = target / "modules/common/Config.qml"
+    if cfg.exists():
+        text = cfg.read_text()
+        new_text, added = migrate_user_modules_block(text)
+        if added:
+            cfg.write_text(new_text)
+            print(f"[mig ] Config.qml userModules: {', '.join(added)}")
 
     for p in spec.get("patches", []):
         rel = p["file"]
