@@ -47,8 +47,15 @@
     {
       "file": "modules/ii/bar/BarContent.qml",
       "optional": true,
-      "skip_if_present": "implicitWidth: root.centerSideModuleWidth",
+      "skip_if_present": "rightCenterGroup\n            anchors.verticalCenter: parent.verticalCenter\n            implicitWidth: root.centerSideModuleWidth",
       "find": "            implicitWidth: clockWidget.implicitWidth + 20",
+      "replace": "            implicitWidth: root.centerSideModuleWidth"
+    },
+    {
+      "file": "modules/ii/bar/BarContent.qml",
+      "optional": true,
+      "skip_if_present": "id: leftCenterGroup\n            anchors.verticalCenter: parent.verticalCenter\n            implicitWidth: root.centerSideModuleWidth",
+      "find": "            implicitWidth: (root.useShortenedForm < 2 && MprisController.activePlayer?.trackTitle?.length > 0) ?\n                           root.centerSideModuleWidth : leftCenterGroup.naturalImplicitWidth",
       "replace": "            implicitWidth: root.centerSideModuleWidth"
     },
     {
