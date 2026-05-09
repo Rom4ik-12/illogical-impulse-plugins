@@ -70,6 +70,34 @@ chmod +x "$QS_DIR/scripts/user_modules/patch.sh" \
 # 2. Patch existing files
 python3 "$HERE/apply_patches.py" "$QS_DIR"
 
+# 2b. Merge our translation strings into existing locale files (additive —
+# we never clobber an existing key, only fill in missing ones).
+if [ -d "$HERE/payload/translations" ] && [ -d "$QS_DIR/translations" ]; then
+    for src in "$HERE/payload/translations"/*.json; do
+        [ -f "$src" ] || continue
+        dst="$QS_DIR/translations/$(basename "$src")"
+        if [ -f "$dst" ]; then
+            python3 - "$src" "$dst" <<'PYEOF'
+import json, sys
+src, dst = sys.argv[1], sys.argv[2]
+with open(src) as f: a = json.load(f)
+with open(dst) as f: b = json.load(f)
+changed = False
+for k, v in a.items():
+    if k not in b:
+        b[k] = v
+        changed = True
+if changed:
+    with open(dst, 'w') as f:
+        json.dump(b, f, ensure_ascii=False, indent=2)
+        f.write('\n')
+PYEOF
+        else
+            cp "$src" "$dst"
+        fi
+    done
+fi
+
 # 3. User-modules dir
 mkdir -p "$SHELL_CFG_DIR/user_modules"
 
