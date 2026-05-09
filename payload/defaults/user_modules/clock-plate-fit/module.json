@@ -1,0 +1,16 @@
+{
+  "id": "clock-plate-fit",
+  "name": "Bar: clock plate hugs the clock",
+  "description": "Shrinks the bar's clock plate to fit the clock width (time, optionally date) instead of the fixed-wider centerSideModule slot. Disable to get a roomier, fixed plate.",
+  "version": "1.0.0",
+  "requiresLoader": "1.4",
+  "author": "rom4ik",
+  "entry": "main.qml",
+  "patches": [
+    {
+      "file": "modules/ii/bar/BarContent.qml",
+      "find": "            implicitWidth: root.centerSideModuleWidth",
+      "replace": "            implicitWidth: clockWidget.implicitWidth + 20"
+    }
+  ]
+}
