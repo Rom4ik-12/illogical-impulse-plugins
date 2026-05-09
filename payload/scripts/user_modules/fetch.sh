@@ -98,12 +98,21 @@ if not_tested:
 PYEOF
 }
 
-# Detect:
-#   github.com/owner/repo/releases/latest/download/<asset>
-#   github.com/owner/repo[.git]
+# Detect URL shapes we can route through GitHub's releases API:
+#   github.com/owner/repo/releases/latest/download/<asset>  → swap latest for picked tag
+#   github.com/owner/repo/releases                          → "give me the best release"
+#   github.com/owner/repo/releases/                         → same
+#   github.com/owner/repo/releases/tag/<tag>                → user pinned this tag, no auto-pick
+#   github.com/owner/repo[.git]                             → repo root, fall back to clone
 github_owner_repo=""
 github_asset_hint=""
-if [[ "$url" =~ ^https://github\.com/([^/]+/[^/]+)/releases/(latest|download)/([^/]+/)?([^/]+)$ ]]; then
+forced_tag=""
+if [[ "$url" =~ ^https://github\.com/([^/]+/[^/]+)/releases/tag/(.+)$ ]]; then
+    github_owner_repo="${BASH_REMATCH[1]}"
+    forced_tag="${BASH_REMATCH[2]}"
+elif [[ "$url" =~ ^https://github\.com/([^/]+/[^/]+)/releases/?$ ]]; then
+    github_owner_repo="${BASH_REMATCH[1]}"
+elif [[ "$url" =~ ^https://github\.com/([^/]+/[^/]+)/releases/(latest|download)/([^/]+/)?([^/]+)$ ]]; then
     github_owner_repo="${BASH_REMATCH[1]}"
     github_asset_hint="${BASH_REMATCH[4]}"
 elif [[ "$url" =~ ^https://github\.com/([^/]+/[^/]+?)(\.git)?/?$ ]]; then
@@ -114,7 +123,21 @@ github_owner_repo="${github_owner_repo%.git}"
 chosen_tag=""
 chosen_asset=""
 not_tested=0
-if [ -n "$github_owner_repo" ] && [ -n "$loader_version" ]; then
+if [ -n "$forced_tag" ]; then
+    # User pinned a specific tag — honour it, look up assets explicitly.
+    if assets_json=$(curl -fsSL -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/$github_owner_repo/releases/tags/$forced_tag" 2>/dev/null); then
+        chosen_tag="$forced_tag"
+        chosen_asset=$(printf '%s' "$assets_json" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+for a in d.get('assets', []):
+    n = a['name'].lower()
+    if n.endswith('.qsmod') or n.endswith('.zip') or n.endswith('.tar.gz') or n.endswith('.tgz'):
+        print(a['browser_download_url']); break
+" 2>/dev/null)
+    fi
+elif [ -n "$github_owner_repo" ] && [ -n "$loader_version" ]; then
     if out=$(pick_compatible "$github_owner_repo" "$loader_version" "$github_asset_hint" 2>/dev/null); then
         chosen_tag=$(printf '%s\n' "$out" | head -1 | cut -f1)
         chosen_asset=$(printf '%s\n' "$out" | head -1 | cut -f2)

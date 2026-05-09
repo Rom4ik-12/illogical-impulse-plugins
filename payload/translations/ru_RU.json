@@ -32,5 +32,11 @@
   "Not tested with the modules system (no requiresLoader field)": "Не тестировался с системой модулей (нет поля requiresLoader)",
   "Not tested for loader v%1 (declares requiresLoader: %2)": "Не тестировался для системы модулей v%1 (модуль заявляет requiresLoader: %2)",
   "Your note": "Ваша заметка",
-  "Doesn't work, has bugs, breaks on …": "Не работает, есть баги, ломается на …"
+  "Doesn't work, has bugs, breaks on …": "Не работает, есть баги, ломается на …",
+  "Personal note (saves to Config)": "Личная заметка (сохраняется в Config)",
+  "Open the module's settings page": "Открыть страницу настроек модуля",
+  "Check the module's source for a newer version and reinstall": "Проверить источник модуля и переустановить, если есть новая версия",
+  "Export this module as a .qsmod archive": "Экспортировать модуль в .qsmod-архив",
+  "Open this module's folder in the file manager": "Открыть папку модуля в файловом менеджере",
+  "Uninstall this module": "Удалить этот модуль"
 }

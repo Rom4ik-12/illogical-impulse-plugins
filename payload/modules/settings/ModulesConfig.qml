@@ -15,6 +15,9 @@ ContentPage {
         property string icon
         property color iconColor: Appearance.colors.colOnSurfaceVariant
         property bool spinning: false
+        // Exposed so child StyledToolTip {} can show on hover — the tooltip
+        // checks `parent.hovered` and Rectangle has no such property by default.
+        property alias hovered: ma.containsMouse
         signal clicked()
         implicitWidth: 30
         implicitHeight: 30
@@ -91,6 +94,9 @@ ContentPage {
                 mainText: Translation.tr("Update modules system")
                 enabled: !UserModules.loaderUpdating
                 onClicked: UserModules.updateLoader()
+                StyledToolTip {
+                    text: Translation.tr("Reinstall the loader from the latest release")
+                }
             }
             RippleButtonWithIcon {
                 materialIcon: (UserModules.updatingModuleId !== ""
@@ -100,6 +106,9 @@ ContentPage {
                 enabled: UserModules.updatingModuleId === ""
                     && (!UserModules._updateQueue || UserModules._updateQueue.length === 0)
                 onClicked: UserModules.updateAll()
+                StyledToolTip {
+                    text: Translation.tr("Re-fetch every installed plugin")
+                }
             }
         }
 
@@ -380,6 +389,9 @@ ContentPage {
                             ? Appearance.colors.colPrimary
                             : Appearance.colors.colOnSurfaceVariant
                         onClicked: row.notesOpen = !row.notesOpen
+                        StyledToolTip {
+                            text: Translation.tr("Personal note (saves to Config)")
+                        }
                     }
                     IconBtn {
                         visible: !!row.modelData.manifest.settingsPage
@@ -388,24 +400,39 @@ ContentPage {
                             ? Appearance.colors.colPrimary
                             : Appearance.colors.colOnSurfaceVariant
                         onClicked: row.settingsOpen = !row.settingsOpen
+                        StyledToolTip {
+                            text: Translation.tr("Open the module's settings page")
+                        }
                     }
                     IconBtn {
                         visible: UserModules.hasUpdateUrl(row.modelData.id)
                         icon: "cloud_download"
                         spinning: UserModules.updatingModuleId === row.modelData.id
                         onClicked: UserModules.updateModule(row.modelData.id)
+                        StyledToolTip {
+                            text: Translation.tr("Check the module's source for a newer version and reinstall")
+                        }
                     }
                     IconBtn {
                         icon: "ios_share"
                         onClicked: UserModules.exportModule(row.modelData.id, "")
+                        StyledToolTip {
+                            text: Translation.tr("Export this module as a .qsmod archive")
+                        }
                     }
                     IconBtn {
                         icon: "folder"
                         onClicked: UserModules.openModuleFolder(row.modelData.id)
+                        StyledToolTip {
+                            text: Translation.tr("Open this module's folder in the file manager")
+                        }
                     }
                     IconBtn {
                         icon: "delete"
                         onClicked: UserModules.uninstall(row.modelData.id)
+                        StyledToolTip {
+                            text: Translation.tr("Uninstall this module")
+                        }
                     }
                 }
 
