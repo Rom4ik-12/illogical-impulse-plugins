@@ -5,6 +5,8 @@
   "version": "1.0.0",
   "requiresLoader": "1.4",
   "author": "rom4ik",
+  "link": "https://github.com/Rom4ik-12/clock-plate-fit",
+  "updateUrl": "https://github.com/Rom4ik-12/clock-plate-fit/releases/latest/download/clock-plate-fit.qsmod",
   "entry": "main.qml",
   "patches": [
     {
