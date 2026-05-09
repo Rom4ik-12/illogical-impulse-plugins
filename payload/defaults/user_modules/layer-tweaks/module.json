@@ -31,5 +31,6 @@
       "find": "                WlrLayershell.namespace: \"quickshell:verticalBar\"\n                // WlrLayershell.layer: WlrLayer.Overlay // TODO enable this when bar can hide when fullscreen\n                implicitWidth:",
       "replace": "                WlrLayershell.namespace: \"quickshell:verticalBar\"\n                WlrLayershell.layer: WlrLayer.Bottom\n                implicitWidth:"
     }
-  ]
+  ],
+  "requiresLoader": "1.3"
 }

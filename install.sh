@@ -59,6 +59,7 @@ REFRESH=(
     scripts/user_modules/patch.sh
     scripts/user_modules/fetch.sh
     MODULES.md
+    VERSION
 )
 for f in "${REFRESH[@]}"; do
     mkdir -p "$QS_DIR/$(dirname "$f")"

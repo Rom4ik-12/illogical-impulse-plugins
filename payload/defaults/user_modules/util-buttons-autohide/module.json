@@ -11,5 +11,6 @@
       "find": "    property bool borderless: Config.options.bar.borderless\n    implicitWidth: rowLayout.implicitWidth + rowLayout.spacing * 2\n    implicitHeight: rowLayout.implicitHeight",
       "replace": "    property bool borderless: Config.options.bar.borderless\n    readonly property bool hasAnyButton: rowLayout.implicitWidth > 0\n    visible: hasAnyButton\n    implicitWidth: hasAnyButton ? rowLayout.implicitWidth + rowLayout.spacing * 2 : 0\n    implicitHeight: rowLayout.implicitHeight"
     }
-  ]
+  ],
+  "requiresLoader": "1.3"
 }

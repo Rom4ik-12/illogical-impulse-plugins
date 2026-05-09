@@ -5,5 +5,6 @@
   "version": "1.0.0",
   "author": "rom4ik",
   "link": "https://github.com/Rom4ik-12/illogical-impulse-plugins",
-  "entry": "main.qml"
+  "entry": "main.qml",
+  "requiresLoader": "1.3"
 }

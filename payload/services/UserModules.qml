@@ -36,6 +36,44 @@ Singleton {
     property string updatingModuleId: ""
     property var _updateQueue: []
 
+    // Current loader version. install.sh ships a VERSION file alongside the
+    // payload; we read it on startup. Drives compatibility checks against a
+    // module manifest's `requiresLoader` field.
+    property string loaderVersion: "1.4.0"
+
+    FileView {
+        id: loaderVersionFile
+        path: Quickshell.shellPath("VERSION")
+        onLoaded: {
+            const v = (loaderVersionFile.text || "").trim();
+            if (v.length > 0) root.loaderVersion = v;
+        }
+        onLoadFailed: {}
+    }
+
+    // True if the module declares no compatibility, or its declared
+    // requiresLoader matches the current loader version (semver-prefix).
+    // Examples: "1.3" matches loader 1.3.x; "1" matches 1.x.x; "*" matches
+    // anything. A missing field → true (unknown — assume ok).
+    function isCompatible(id) {
+        const m = root.modules.find(x => x.id === id);
+        if (!m || !m.manifest) return true;
+        const req = (m.manifest.requiresLoader || "").trim();
+        return _versionPrefixMatches(req, root.loaderVersion);
+    }
+
+    function _versionPrefixMatches(req, ver) {
+        if (!req || req === "*") return true;
+        const rp = req.replace(/^v/, "").split(".");
+        const vp = ver.replace(/^v/, "").split(".");
+        for (let i = 0; i < rp.length; i++) {
+            const a = rp[i], b = vp[i] || "";
+            if (a === "*" || a === "x") continue;
+            if (a !== b) return false;
+        }
+        return true;
+    }
+
     // Flat list of bar widgets contributed by enabled modules:
     // [{ moduleId, url }]. Drop a `UserModulesBarSlot {}` somewhere in the
     // bar layout to render them.
@@ -90,7 +128,7 @@ Singleton {
         updateProc.targetId = id;
         updateProc.wasEnabled = wasEnabled;
         updateProc.command = ["bash", root.fetchScript,
-            m.manifest.updateUrl, `/tmp/qsmod-update-${id}`];
+            m.manifest.updateUrl, `/tmp/qsmod-update-${id}`, root.loaderVersion];
         updateProc.running = true;
     }
 
@@ -294,7 +332,7 @@ Singleton {
         root.installing = true;
         if (/^https?:\/\//.test(s) || /^git@/.test(s)) {
             urlInstallProc.command = ["bash", root.fetchScript, s,
-                `/tmp/qsmod-install-${Date.now()}`];
+                `/tmp/qsmod-install-${Date.now()}`, root.loaderVersion];
             urlInstallProc.running = true;
         } else {
             root.install(s);

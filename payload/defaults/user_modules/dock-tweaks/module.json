@@ -4,5 +4,6 @@
   "description": "Adds shortcuts to toggle the dock and auto-pins it when no window is focused.",
   "version": "1.0.0",
   "author": "you",
-  "entry": "main.qml"
+  "entry": "main.qml",
+  "requiresLoader": "1.3"
 }

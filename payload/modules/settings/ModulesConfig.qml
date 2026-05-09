@@ -299,6 +299,31 @@ ContentPage {
                             Layout.fillWidth: true
                             font.pixelSize: Appearance.font.pixelSize.small
                         }
+                        // Compatibility badge — small warning when the
+                        // module's requiresLoader doesn't match the current
+                        // loader, or when the field is absent (untested).
+                        RowLayout {
+                            visible: !UserModules.isCompatible(row.modelData.id)
+                                || !row.modelData.manifest.requiresLoader
+                            Layout.fillWidth: true
+                            spacing: 4
+                            MaterialSymbol {
+                                text: "warning"
+                                iconSize: 14
+                                color: Appearance.m3colors.m3error
+                            }
+                            StyledText {
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                color: Appearance.m3colors.m3error
+                                font.pixelSize: Appearance.font.pixelSize.small
+                                text: !row.modelData.manifest.requiresLoader
+                                    ? Translation.tr("Not tested with the modules system (no requiresLoader field)")
+                                    : Translation.tr("Not tested for loader v%1 (declares requiresLoader: %2)")
+                                        .arg(UserModules.loaderVersion)
+                                        .arg(row.modelData.manifest.requiresLoader)
+                            }
+                        }
                         Item {
                             visible: !!row.modelData.manifest.author
                             Layout.fillWidth: true

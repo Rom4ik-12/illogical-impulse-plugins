@@ -11,5 +11,6 @@
       "find": "        anchors.leftMargin: root.xOffset\n\n        Behavior on anchors.leftMargin {",
       "replace": "        anchors.leftMargin: root.xOffset\n\n        MouseArea {\n            anchors.fill: parent\n            acceptedButtons: Qt.LeftButton\n            onClicked: {\n                Notifications.attemptInvokeAction(notificationObject.notificationId, \"default\");\n            }\n        }\n\n        Behavior on anchors.leftMargin {"
     }
-  ]
+  ],
+  "requiresLoader": "1.3"
 }

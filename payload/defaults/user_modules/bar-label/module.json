@@ -12,6 +12,9 @@
     "Поддержка акцентного цвета темы"
   ],
   "barWidgets": [
-    { "source": "BarLabel.qml" }
-  ]
+    {
+      "source": "BarLabel.qml"
+    }
+  ],
+  "requiresLoader": "1.3"
 }

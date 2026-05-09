@@ -48,6 +48,7 @@ The list of enabled module IDs is stored in the shell config under
 | `entry`      | no       | QML file to load. Defaults to `main.qml`.                    |
 | `settingsPage`| no      | QML file with the module's settings UI. Shown inline in Settings → Modules. |
 | `updateUrl`  | no       | Where Settings → Modules can pull a fresh copy from. See "Auto-update" below. |
+| `requiresLoader` | no   | Version-prefix the module is known to work with — e.g. `"1.4"` (matches loader 1.4.x), `"1"` (matches 1.x.x), `"*"` (any). When set, the auto-updater walks GitHub releases newest-first and picks the latest tag whose `module.json` declares a compatible prefix. Modules without this field, or with a mismatched prefix, get a "Not tested" badge in Settings. |
 
 ---
 

@@ -28,5 +28,7 @@
   "Module settings": "Настройки модуля",
   "Updated to %1": "Обновлено до %1",
   "Loader updated to %1": "Лоадер обновлён до %1",
-  "What's new — loader %1": "Что нового — система модулей %1"
+  "What's new — loader %1": "Что нового — система модулей %1",
+  "Not tested with the modules system (no requiresLoader field)": "Не тестировался с системой модулей (нет поля requiresLoader)",
+  "Not tested for loader v%1 (declares requiresLoader: %2)": "Не тестировался для системы модулей v%1 (модуль заявляет requiresLoader: %2)"
 }

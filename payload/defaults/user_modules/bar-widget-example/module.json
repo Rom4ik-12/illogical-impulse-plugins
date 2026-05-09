@@ -6,6 +6,9 @@
   "author": "you",
   "entry": "main.qml",
   "barWidgets": [
-    { "source": "Smiley.qml" }
-  ]
+    {
+      "source": "Smiley.qml"
+    }
+  ],
+  "requiresLoader": "1.3"
 }
