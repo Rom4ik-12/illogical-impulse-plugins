@@ -77,6 +77,8 @@ ContentPage {
             anchors.left: parent.left
             anchors.leftMargin: 10
             anchors.verticalCenter: parent.verticalCenter
+            width: Appearance.font.pixelSize.larger
+            height: Appearance.font.pixelSize.larger
             implicitSize: Appearance.font.pixelSize.larger
             lineWidth: 2
             running: parent.spinning
@@ -113,6 +115,8 @@ ContentPage {
                 anchors.left: parent.left
                 anchors.leftMargin: 10
                 anchors.verticalCenter: parent.verticalCenter
+                width: Appearance.font.pixelSize.larger
+                height: Appearance.font.pixelSize.larger
                 implicitSize: Appearance.font.pixelSize.larger
                 lineWidth: 2
                 running: tile.spinning

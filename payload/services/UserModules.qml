@@ -39,7 +39,7 @@ Singleton {
     // Current loader version. install.sh ships a VERSION file alongside the
     // payload; we read it on startup. Drives compatibility checks against a
     // module manifest's `requiresLoader` field.
-    property string loaderVersion: "1.4.9"
+    property string loaderVersion: "1.4.10"
 
     // Available loader release tags fetched from GitHub (newest first).
     // Populated by fetchLoaderVersions(); the UI calls it lazily.
