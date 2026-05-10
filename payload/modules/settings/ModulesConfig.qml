@@ -53,6 +53,38 @@ ContentPage {
         }
     }
 
+    // RippleButtonWithIcon wrapper that overlays Md3Spinner at the icon
+    // position while keeping StyledToolTip inside the button (which has
+    // `hovered`) so tooltips still work.
+    component SpinBtn: Item {
+        property string icon
+        property string label
+        property bool spinning: false
+        signal clicked()
+        // Children (e.g. StyledToolTip) are forwarded into the button.
+        default property alias extras: innerBtn.data
+        implicitWidth: innerBtn.implicitWidth
+        implicitHeight: innerBtn.implicitHeight
+        RippleButtonWithIcon {
+            id: innerBtn
+            anchors.fill: parent
+            materialIcon: parent.icon
+            mainText: parent.label
+            enabled: !parent.spinning
+            onClicked: parent.clicked()
+        }
+        Md3Spinner {
+            anchors.left: parent.left
+            anchors.leftMargin: 10
+            anchors.verticalCenter: parent.verticalCenter
+            implicitSize: Appearance.font.pixelSize.larger
+            lineWidth: 2
+            running: parent.spinning
+            visible: parent.spinning
+            color: Appearance.colors.colPrimary
+        }
+    }
+
     // Action button + small caption beneath. Used in the top row and the
     // Developer subsection so every button has a one-line description.
     component ActionTile: ColumnLayout {
@@ -111,22 +143,20 @@ ContentPage {
         Flow {
             Layout.fillWidth: true
             spacing: 4
-            RippleButtonWithIcon {
-                materialIcon: UserModules.loaderUpdating ? "progress_activity" : "system_update"
-                mainText: Translation.tr("Update modules system")
-                enabled: !UserModules.loaderUpdating
+            SpinBtn {
+                icon: "system_update"
+                label: Translation.tr("Update modules system")
+                spinning: UserModules.loaderUpdating
                 onClicked: UserModules.updateLoader()
                 StyledToolTip {
                     text: Translation.tr("Reinstall the loader from the latest release")
                 }
             }
-            RippleButtonWithIcon {
-                materialIcon: (UserModules.updatingModuleId !== ""
-                    || (UserModules._updateQueue && UserModules._updateQueue.length > 0))
-                    ? "progress_activity" : "cloud_download"
-                mainText: Translation.tr("Update all plugins")
-                enabled: UserModules.updatingModuleId === ""
-                    && (!UserModules._updateQueue || UserModules._updateQueue.length === 0)
+            SpinBtn {
+                icon: "cloud_download"
+                label: Translation.tr("Update all plugins")
+                spinning: UserModules.updatingModuleId !== ""
+                    || (UserModules._updateQueue && UserModules._updateQueue.length > 0)
                 onClicked: UserModules.updateAll()
                 StyledToolTip {
                     text: Translation.tr("Re-fetch every installed plugin")

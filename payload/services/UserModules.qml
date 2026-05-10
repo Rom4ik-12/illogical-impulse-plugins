@@ -39,7 +39,7 @@ Singleton {
     // Current loader version. install.sh ships a VERSION file alongside the
     // payload; we read it on startup. Drives compatibility checks against a
     // module manifest's `requiresLoader` field.
-    property string loaderVersion: "1.4.8"
+    property string loaderVersion: "1.4.9"
 
     // Available loader release tags fetched from GitHub (newest first).
     // Populated by fetchLoaderVersions(); the UI calls it lazily.
@@ -587,29 +587,37 @@ Singleton {
         stdout: StdioCollector { id: updateBuf }
         stderr: StdioCollector { id: updateErrBuf }
         onExited: (code) => {
+            const id = updateProc.targetId;
+            const wasEnabled = updateProc.wasEnabled;
             root.updatingModuleId = "";
             const path = (updateBuf.text || "").trim();
             if (code !== 0 || path.length === 0) {
-                root.lastError = `Update failed for ${updateProc.targetId}: `
+                root.lastError = `Update failed for ${id}: `
                     + (updateErrBuf.text || `exit ${code}`);
                 console.warn("[UserModules]", root.lastError);
+                // Re-enable if it was disabled for patch revert but update failed.
+                if (wasEnabled && root.hasPatches(id)) root.setEnabled(id, true);
                 Qt.callLater(root._runNextUpdate);
                 return;
             }
             // Reuse the install path. Rescan happens after install too.
             root.install(path);
             // Re-enable after a short delay so the rescan picks up the new files first.
-            if (updateProc.wasEnabled) reEnableTimer.start();
+            if (wasEnabled) reEnableTimer.scheduleId(id);
         }
     }
-    Timer {
+    QtObject {
         id: reEnableTimer
-        interval: 600
-        repeat: false
-        onTriggered: {
-            if (updateProc.targetId && !root.isEnabled(updateProc.targetId)) {
-                root.setEnabled(updateProc.targetId, true);
-            }
+        // Each pending re-enable gets its own timer so concurrent updates
+        // (queue) don't overwrite each other's target id.
+        function scheduleId(id) {
+            const t = Qt.createQmlObject(
+                'import QtQuick; Timer { interval: 600; repeat: false; running: true }',
+                reEnableTimer, "reEnable_" + id);
+            t.triggered.connect(() => {
+                if (id && !root.isEnabled(id)) root.setEnabled(id, true);
+                t.destroy();
+            });
         }
     }
 
