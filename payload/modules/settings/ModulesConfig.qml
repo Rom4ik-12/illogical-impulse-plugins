@@ -228,6 +228,54 @@ ContentPage {
                     onClicked: UserModules.rebaselinePatches()
                 }
             }
+
+            // Pick a specific loader release to install (defaults to latest
+            // via the main "Update modules system" button).
+            ConfigRow {
+                visible: devSubsection.open
+                uniform: false
+                StyledComboBox {
+                    id: versionPicker
+                    Layout.fillWidth: true
+                    buttonIcon: "history"
+                    textRole: "displayName"
+                    enabled: !UserModules.fetchingLoaderVersions
+                        && UserModules.availableLoaderVersions.length > 0
+                    model: UserModules.availableLoaderVersions.map(t => ({
+                        displayName: t === ("v" + UserModules.loaderVersion)
+                                  || t === UserModules.loaderVersion
+                            ? t + " (" + Translation.tr("current") + ")"
+                            : t,
+                        value: t
+                    }))
+                    displayText: UserModules.fetchingLoaderVersions
+                        ? Translation.tr("Loading…")
+                        : (UserModules.availableLoaderVersions.length === 0
+                            ? Translation.tr("Click refresh to list versions")
+                            : (currentIndex >= 0 ? model[currentIndex].displayName : ""))
+                }
+                RippleButtonWithIcon {
+                    materialIcon: UserModules.fetchingLoaderVersions ? "progress_activity" : "refresh"
+                    mainText: Translation.tr("List")
+                    enabled: !UserModules.fetchingLoaderVersions
+                    onClicked: UserModules.fetchLoaderVersions()
+                    StyledToolTip {
+                        text: Translation.tr("Fetch the list of loader versions from GitHub")
+                    }
+                }
+                RippleButtonWithIcon {
+                    materialIcon: UserModules.loaderUpdating ? "progress_activity" : "download"
+                    mainText: Translation.tr("Install version")
+                    enabled: !UserModules.loaderUpdating
+                        && versionPicker.currentIndex >= 0
+                        && UserModules.availableLoaderVersions.length > 0
+                    onClicked: UserModules.updateLoader(
+                        UserModules.availableLoaderVersions[versionPicker.currentIndex])
+                    StyledToolTip {
+                        text: Translation.tr("Reinstall the loader at the selected version")
+                    }
+                }
+            }
         }
     }
 

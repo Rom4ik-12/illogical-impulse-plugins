@@ -39,7 +39,12 @@ Singleton {
     // Current loader version. install.sh ships a VERSION file alongside the
     // payload; we read it on startup. Drives compatibility checks against a
     // module manifest's `requiresLoader` field.
-    property string loaderVersion: "1.4.4"
+    property string loaderVersion: "1.4.5"
+
+    // Available loader release tags fetched from GitHub (newest first).
+    // Populated by fetchLoaderVersions(); the UI calls it lazily.
+    property var availableLoaderVersions: []
+    property bool fetchingLoaderVersions: false
 
     FileView {
         id: loaderVersionFile
@@ -244,12 +249,18 @@ Singleton {
     }
 
     // Self-update: download a new installer tarball / clone a repo and run
-    // its install.sh, replacing the loader files in this shell.
-    function updateLoader() {
-        const url = (Config.options?.userModules?.loaderUpdateUrl ?? "").trim();
+    // its install.sh, replacing the loader files in this shell. Pass a tag
+    // (e.g. "v1.4.3") to install that specific release instead of latest.
+    function updateLoader(versionTag) {
+        let url = (Config.options?.userModules?.loaderUpdateUrl ?? "").trim();
         if (url.length === 0) {
             root.lastError = "Set userModules.loaderUpdateUrl in config.json first.";
             return;
+        }
+        const tag = (versionTag || "").trim();
+        if (tag.length > 0) {
+            // Rewrite "releases/latest/download/<asset>" → "releases/download/<tag>/<asset>"
+            url = url.replace(/\/releases\/latest\/download\//, `/releases/download/${tag}/`);
         }
         root.loaderUpdating = true;
         loaderUpdateProc.command = ["bash", "-c",
@@ -274,6 +285,25 @@ Singleton {
     function refresh() {
         root.refreshing = true;
         scanProc.running = true;
+    }
+
+    // Pull the list of release tags from the loader's GitHub repo. Derives
+    // the API URL from `loaderUpdateUrl` (must be a github.com URL) and fills
+    // `availableLoaderVersions` newest-first.
+    function fetchLoaderVersions() {
+        const url = (Config.options?.userModules?.loaderUpdateUrl ?? "").trim();
+        const m = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+        if (!m) {
+            root.lastError = "loaderUpdateUrl is not a github.com URL — cannot list versions.";
+            return;
+        }
+        root.fetchingLoaderVersions = true;
+        const api = `https://api.github.com/repos/${m[1]}/${m[2]}/releases?per_page=30`;
+        fetchVersionsProc.command = ["bash", "-c",
+            `curl -sf '${api}' | python3 -c "import sys,json;`
+            + `print('\\n'.join(r['tag_name'] for r in json.load(sys.stdin) if not r.get('draft')))"`
+        ];
+        fetchVersionsProc.running = true;
     }
 
     function openFolder() {
@@ -659,6 +689,22 @@ Singleton {
             } catch(e) {}
         }
         onLoadFailed: {}
+    }
+
+    Process {
+        id: fetchVersionsProc
+        stdout: StdioCollector { id: versionsOutBuf }
+        stderr: StdioCollector { id: versionsErrBuf }
+        onExited: (code) => {
+            root.fetchingLoaderVersions = false;
+            if (code === 0) {
+                const tags = (versionsOutBuf.text || "").split("\n")
+                    .map(s => s.trim()).filter(s => s.length > 0);
+                root.availableLoaderVersions = tags;
+            } else {
+                root.lastError = `Could not fetch loader versions: ${versionsErrBuf.text || "exit " + code}`;
+            }
+        }
     }
 
     Process {
