@@ -10,8 +10,8 @@ Item {
 
     property bool running: true
     property color color: Appearance.colors.colPrimary
-    property int lineWidth: 2.5
-    property int implicitSize: 18
+    property real lineWidth: 2.5
+    property real implicitSize: 18
 
     implicitWidth: implicitSize
     implicitHeight: implicitSize
