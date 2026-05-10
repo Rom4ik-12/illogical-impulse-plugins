@@ -56,6 +56,8 @@ REFRESH=(
     modules/userModules/UserModulesBarSlot.qml
     modules/userModules/qmldir
     modules/settings/ModulesConfig.qml
+    modules/common/widgets/Md3Spinner.qml
+    modules/common/widgets/RippleButtonWithIcon.qml
     scripts/user_modules/patch.sh
     scripts/user_modules/fetch.sh
     MODULES.md
