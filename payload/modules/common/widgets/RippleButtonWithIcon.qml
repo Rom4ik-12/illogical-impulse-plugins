@@ -8,7 +8,6 @@ RippleButton {
     property string nerdIcon
     property string materialIcon
     property bool materialIconFill: true
-    property bool spinning: false
     property string mainText: "Button text"
     property Component mainContentComponent: Component {
         StyledText {
@@ -26,24 +25,11 @@ RippleButton {
     contentItem: RowLayout {
         Item {
             Layout.fillWidth: false
-            implicitWidth: Math.max(materialIconLoader.implicitWidth,
-                                    nerdIconLoader.implicitWidth,
-                                    spinnerLoader.implicitWidth)
-            Loader {
-                id: spinnerLoader
-                anchors.centerIn: parent
-                active: buttonWithIconRoot.spinning
-                sourceComponent: Md3Spinner {
-                    implicitSize: Appearance.font.pixelSize.larger
-                    lineWidth: 2
-                    running: true
-                    color: Appearance.colors.colPrimary
-                }
-            }
+            implicitWidth: Math.max(materialIconLoader.implicitWidth, nerdIconLoader.implicitWidth)
             Loader {
                 id: materialIconLoader
                 anchors.centerIn: parent
-                active: !buttonWithIconRoot.spinning && !nerdIcon
+                active: !nerdIcon
                 sourceComponent: MaterialSymbol {
                     text: buttonWithIconRoot.materialIcon
                     iconSize: Appearance.font.pixelSize.larger
@@ -54,7 +40,7 @@ RippleButton {
             Loader {
                 id: nerdIconLoader
                 anchors.centerIn: parent
-                active: !buttonWithIconRoot.spinning && !!nerdIcon
+                active: nerdIcon
                 sourceComponent: StyledText {
                     text: buttonWithIconRoot.nerdIcon
                     font.pixelSize: Appearance.font.pixelSize.larger

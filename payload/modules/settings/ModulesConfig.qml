@@ -65,13 +65,28 @@ ContentPage {
         spacing: 2
         Layout.preferredWidth: 200
 
-        RippleButtonWithIcon {
+        Item {
             Layout.fillWidth: true
-            materialIcon: tile.icon
-            spinning: tile.spinning
-            mainText: tile.label
-            enabled: tile.enabled
-            onClicked: tile.clicked()
+            implicitHeight: tileBtn.implicitHeight
+
+            RippleButtonWithIcon {
+                id: tileBtn
+                anchors.fill: parent
+                materialIcon: tile.icon
+                mainText: tile.label
+                enabled: tile.enabled && !tile.spinning
+                onClicked: tile.clicked()
+            }
+            Md3Spinner {
+                anchors.left: parent.left
+                anchors.leftMargin: 10
+                anchors.verticalCenter: parent.verticalCenter
+                implicitSize: Appearance.font.pixelSize.larger
+                lineWidth: 2
+                running: tile.spinning
+                visible: tile.spinning
+                color: Appearance.colors.colPrimary
+            }
         }
         StyledText {
             Layout.fillWidth: true
@@ -97,8 +112,7 @@ ContentPage {
             Layout.fillWidth: true
             spacing: 4
             RippleButtonWithIcon {
-                materialIcon: "system_update"
-                spinning: UserModules.loaderUpdating
+                materialIcon: UserModules.loaderUpdating ? "progress_activity" : "system_update"
                 mainText: Translation.tr("Update modules system")
                 enabled: !UserModules.loaderUpdating
                 onClicked: UserModules.updateLoader()
@@ -107,9 +121,9 @@ ContentPage {
                 }
             }
             RippleButtonWithIcon {
-                materialIcon: "cloud_download"
-                spinning: UserModules.updatingModuleId !== ""
-                    || (UserModules._updateQueue && UserModules._updateQueue.length > 0)
+                materialIcon: (UserModules.updatingModuleId !== ""
+                    || (UserModules._updateQueue && UserModules._updateQueue.length > 0))
+                    ? "progress_activity" : "cloud_download"
                 mainText: Translation.tr("Update all plugins")
                 enabled: UserModules.updatingModuleId === ""
                     && (!UserModules._updateQueue || UserModules._updateQueue.length === 0)
@@ -127,8 +141,7 @@ ContentPage {
                 Layout.fillWidth: true
                 spacing: 4
                 RippleButtonWithIcon {
-                    materialIcon: "folder_open"
-                    spinning: UserModules.installing
+                    materialIcon: UserModules.installing ? "progress_activity" : "folder_open"
                     mainText: Translation.tr("Choose file…")
                     enabled: !UserModules.installing
                     onClicked: UserModules.pickAndInstall()
@@ -144,8 +157,7 @@ ContentPage {
                     wrapMode: TextEdit.NoWrap
                 }
                 RippleButtonWithIcon {
-                    materialIcon: "download"
-                    spinning: UserModules.installing
+                    materialIcon: UserModules.installing ? "progress_activity" : "download"
                     mainText: Translation.tr("Install")
                     enabled: installPathField.text.trim().length > 0 && !UserModules.installing
                     onClicked: {
@@ -265,8 +277,7 @@ ContentPage {
                             : (currentIndex >= 0 ? model[currentIndex].displayName : ""))
                 }
                 RippleButtonWithIcon {
-                    materialIcon: "refresh"
-                    spinning: UserModules.fetchingLoaderVersions
+                    materialIcon: UserModules.fetchingLoaderVersions ? "progress_activity" : "refresh"
                     mainText: Translation.tr("List")
                     enabled: !UserModules.fetchingLoaderVersions
                     onClicked: UserModules.fetchLoaderVersions()
@@ -275,8 +286,7 @@ ContentPage {
                     }
                 }
                 RippleButtonWithIcon {
-                    materialIcon: "download"
-                    spinning: UserModules.loaderUpdating
+                    materialIcon: UserModules.loaderUpdating ? "progress_activity" : "download"
                     mainText: Translation.tr("Install version")
                     enabled: !UserModules.loaderUpdating
                         && versionPicker.currentIndex >= 0
