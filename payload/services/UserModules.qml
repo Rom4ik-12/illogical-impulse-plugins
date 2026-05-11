@@ -39,7 +39,7 @@ Singleton {
     // Current loader version. install.sh ships a VERSION file alongside the
     // payload; we read it on startup. Drives compatibility checks against a
     // module manifest's `requiresLoader` field.
-    property string loaderVersion: "1.4.10"
+    property string loaderVersion: "1.4.11"
 
     // Available loader release tags fetched from GitHub (newest first).
     // Populated by fetchLoaderVersions(); the UI calls it lazily.
@@ -64,6 +64,12 @@ Singleton {
         const m = root.modules.find(x => x.id === id);
         if (!m || !m.manifest) return true;
         const req = (m.manifest.requiresLoader || "").trim();
+
+        // Backward compatibility: allow 1.2 and 1.3 modules on 1.4.x
+        if (req.indexOf("1.2") === 0 || req.indexOf("1.3") === 0) {
+            if (root.loaderVersion.indexOf("1.4") === 0) return true;
+        }
+
         return _versionPrefixMatches(req, root.loaderVersion);
     }
 
@@ -390,6 +396,45 @@ Singleton {
         }
     }
 
+    // Migration logic for settings from versions 1.2 and 1.3
+    function migrateLegacyConfig() {
+        const path = Directories.shellConfigPath;
+        const proc = Qt.createQmlObject('import Quickshell.Io; Process {}', root);
+        proc.command = ["cat", path];
+        const collector = Qt.createQmlObject('import Quickshell.Io; StdioCollector {}', root);
+        proc.stdout = collector;
+        proc.onExited = (code) => {
+            if (code !== 0) { proc.destroy(); return; }
+            try {
+                const cfg = JSON.parse(collector.text);
+                let changed = false;
+                const um = cfg.userModules || cfg.plugins;
+                if (um) {
+                    // Migrate seenVersions object to seenVersionsJson string
+                    if (um.seenVersions && typeof um.seenVersions === "object") {
+                        Config.options.userModules.seenVersionsJson = JSON.stringify(um.seenVersions);
+                        changed = true;
+                    }
+                    // Migrate notes object to notesJson string
+                    if (um.notes && typeof um.notes === "object") {
+                        Config.options.userModules.notesJson = JSON.stringify(um.notes);
+                        changed = true;
+                    }
+                    // Migrate plugins.enabled to userModules.enabled
+                    if (cfg.plugins && cfg.plugins.enabled && !cfg.userModules) {
+                        Config.options.userModules.enabled = cfg.plugins.enabled;
+                        changed = true;
+                    }
+                }
+                if (changed) console.log("[UserModules] Migrated legacy settings from 1.2/1.3");
+            } catch (e) {
+                console.warn("[UserModules] Migration failed:", e);
+            }
+            proc.destroy();
+        };
+        proc.running = true;
+    }
+
     // Install from a .qsmod (zip) or a plain folder. Source path may use file:// .
     function install(sourcePath) {
         const src = FileUtils.trimFileProtocol(sourcePath).trim();
@@ -422,7 +467,12 @@ Singleton {
 
     Connections {
         target: Config
-        function onReadyChanged() { if (Config.ready) root.refresh(); }
+        function onReadyChanged() {
+            if (Config.ready) {
+                root.migrateLegacyConfig();
+                root.refresh();
+            }
+        }
     }
 
     Timer {
@@ -444,7 +494,8 @@ Singleton {
             + `  m="$d/module.json"; [ -f "$m" ] || continue;`
             + `  id=$(basename "$d");`
             + `  if [ $first -eq 0 ]; then printf ','; fi; first=0;`
-            + `  printf '{"_id":"%s","_dir":"%s","manifest":' "$id" "\${d%/}";`
+            + `  sFile=""; [ -f "$d/Settings.qml" ] && sFile="Settings.qml"; [ -f "$d/settings.qml" ] && sFile="settings.qml";`
+            + `  printf '{"_id":"%s","_dir":"%s", "_hasSettings": %s, "_settingsFile": "%s", "manifest":' "$id" "\${d%/}" "$([ -n "$sFile" ] && echo true || echo false)" "$sFile";`
             + `  cat "$m"; printf '}';`
             + `done;`
             + `printf ']'`
@@ -458,12 +509,23 @@ Singleton {
                     for (const item of arr) {
                         const m = item.manifest || {};
                         const entry = (m.entry && m.entry.length > 0) ? m.entry : "main.qml";
+                        
+                        // Fallback for settingsPage: use manifest field, or fallback to Settings.qml/settings.qml if it exists
+                        let settingsPage = m.settingsPage || "";
+                        if (!settingsPage && item._hasSettings) {
+                            // The bash script confirmed one of them exists.
+                            // We'll pass the specific filename from bash to avoid guessing.
+                            settingsPage = item._settingsFile;
+                        }
+
                         out.push({
                             id: m.id || item._id,
                             dir: item._dir,
                             entry: entry,
                             entryUrl: `file://${item._dir}/${entry}`,
-                            manifest: m
+                            settingsPage: settingsPage,
+                            manifest: m,
+                            _hasSettings: item._hasSettings // keep for dynamic check if needed
                         });
                     }
                     // Only reassign when content actually changes — otherwise

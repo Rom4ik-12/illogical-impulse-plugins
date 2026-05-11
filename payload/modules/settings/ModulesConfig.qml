@@ -29,7 +29,7 @@ ContentPage {
             anchors.centerIn: parent
             active: parent.spinning
             sourceComponent: Md3Spinner {
-                implicitSize: 18
+                width: 18; height: 18
                 lineWidth: 2
                 running: true
                 color: Appearance.colors.colPrimary
@@ -60,8 +60,8 @@ ContentPage {
         property string icon
         property string label
         property bool spinning: false
+        property bool extraEnabled: true
         signal clicked()
-        // Children (e.g. StyledToolTip) are forwarded into the button.
         default property alias extras: innerBtn.data
         implicitWidth: innerBtn.implicitWidth
         implicitHeight: innerBtn.implicitHeight
@@ -70,20 +70,9 @@ ContentPage {
             anchors.fill: parent
             materialIcon: parent.icon
             mainText: parent.label
-            enabled: !parent.spinning
+            spinning: parent.spinning
+            enabled: parent.extraEnabled && !parent.spinning
             onClicked: parent.clicked()
-        }
-        Md3Spinner {
-            anchors.left: parent.left
-            anchors.leftMargin: 10
-            anchors.verticalCenter: parent.verticalCenter
-            width: Appearance.font.pixelSize.larger
-            height: Appearance.font.pixelSize.larger
-            implicitSize: Appearance.font.pixelSize.larger
-            lineWidth: 2
-            running: parent.spinning
-            visible: parent.spinning
-            color: Appearance.colors.colPrimary
         }
     }
 
@@ -99,30 +88,14 @@ ContentPage {
         spacing: 2
         Layout.preferredWidth: 200
 
-        Item {
+        RippleButtonWithIcon {
+            id: tileBtn
             Layout.fillWidth: true
-            implicitHeight: tileBtn.implicitHeight
-
-            RippleButtonWithIcon {
-                id: tileBtn
-                anchors.fill: parent
-                materialIcon: tile.icon
-                mainText: tile.label
-                enabled: tile.enabled && !tile.spinning
-                onClicked: tile.clicked()
-            }
-            Md3Spinner {
-                anchors.left: parent.left
-                anchors.leftMargin: 10
-                anchors.verticalCenter: parent.verticalCenter
-                width: Appearance.font.pixelSize.larger
-                height: Appearance.font.pixelSize.larger
-                implicitSize: Appearance.font.pixelSize.larger
-                lineWidth: 2
-                running: tile.spinning
-                visible: tile.spinning
-                color: Appearance.colors.colPrimary
-            }
+            materialIcon: tile.icon
+            mainText: tile.label
+            spinning: tile.spinning
+            enabled: tile.enabled && !tile.spinning
+            onClicked: tile.clicked()
         }
         StyledText {
             Layout.fillWidth: true
@@ -174,10 +147,10 @@ ContentPage {
             Flow {
                 Layout.fillWidth: true
                 spacing: 4
-                RippleButtonWithIcon {
-                    materialIcon: UserModules.installing ? "progress_activity" : "folder_open"
-                    mainText: Translation.tr("Choose file…")
-                    enabled: !UserModules.installing
+                SpinBtn {
+                    icon: "folder_open"
+                    label: Translation.tr("Choose file…")
+                    spinning: UserModules.installing
                     onClicked: UserModules.pickAndInstall()
                 }
             }
@@ -190,10 +163,11 @@ ContentPage {
                     placeholderText: Translation.tr("…or paste a path / URL (.qsmod, .zip, github.com/foo/bar)")
                     wrapMode: TextEdit.NoWrap
                 }
-                RippleButtonWithIcon {
-                    materialIcon: UserModules.installing ? "progress_activity" : "download"
-                    mainText: Translation.tr("Install")
-                    enabled: installPathField.text.trim().length > 0 && !UserModules.installing
+                SpinBtn {
+                    icon: "download"
+                    label: Translation.tr("Install")
+                    spinning: UserModules.installing
+                    extraEnabled: installPathField.text.trim().length > 0
                     onClicked: {
                         UserModules.installFromUrlOrPath(installPathField.text);
                         installPathField.text = "";
@@ -310,20 +284,20 @@ ContentPage {
                             ? Translation.tr("Click refresh to list versions")
                             : (currentIndex >= 0 ? model[currentIndex].displayName : ""))
                 }
-                RippleButtonWithIcon {
-                    materialIcon: UserModules.fetchingLoaderVersions ? "progress_activity" : "refresh"
-                    mainText: Translation.tr("List")
-                    enabled: !UserModules.fetchingLoaderVersions
+                SpinBtn {
+                    icon: "refresh"
+                    label: Translation.tr("List")
+                    spinning: UserModules.fetchingLoaderVersions
                     onClicked: UserModules.fetchLoaderVersions()
                     StyledToolTip {
                         text: Translation.tr("Fetch the list of loader versions from GitHub")
                     }
                 }
-                RippleButtonWithIcon {
-                    materialIcon: UserModules.loaderUpdating ? "progress_activity" : "download"
-                    mainText: Translation.tr("Install version")
-                    enabled: !UserModules.loaderUpdating
-                        && versionPicker.currentIndex >= 0
+                SpinBtn {
+                    icon: "download"
+                    label: Translation.tr("Install version")
+                    spinning: UserModules.loaderUpdating
+                    extraEnabled: versionPicker.currentIndex >= 0
                         && UserModules.availableLoaderVersions.length > 0
                     onClicked: UserModules.updateLoader(
                         UserModules.availableLoaderVersions[versionPicker.currentIndex])
@@ -414,6 +388,24 @@ ContentPage {
                             Layout.fillWidth: true
                             font.pixelSize: Appearance.font.pixelSize.small
                         }
+                        // Reload warning for patched modules
+                        RowLayout {
+                            visible: UserModules.hasPatches(row.modelData.id)
+                            Layout.fillWidth: true
+                            spacing: 4
+                            MaterialSymbol {
+                                text: "restart_alt"
+                                iconSize: 14
+                                color: Appearance.colors.colOnSurfaceVariant
+                            }
+                            StyledText {
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                color: Appearance.colors.colOnSurfaceVariant
+                                font.pixelSize: Appearance.font.pixelSize.small
+                                text: Translation.tr("Requires Quickshell reload to apply changes")
+                            }
+                        }
                         // Compatibility badge — small warning when the
                         // module's requiresLoader doesn't match the current
                         // loader, or when the field is absent (untested).
@@ -433,7 +425,7 @@ ContentPage {
                                 color: Appearance.m3colors.m3error
                                 font.pixelSize: Appearance.font.pixelSize.small
                                 text: !row.modelData.manifest.requiresLoader
-                                    ? Translation.tr("Not tested with the modules system (no requiresLoader field)")
+                                    ? Translation.tr("Not tested with the modules system")
                                     : Translation.tr("Not tested for loader v%1 (declares requiresLoader: %2)")
                                         .arg(UserModules.loaderVersion)
                                         .arg(row.modelData.manifest.requiresLoader)
@@ -498,7 +490,7 @@ ContentPage {
                         }
                     }
                     IconBtn {
-                        visible: !!row.modelData.manifest.settingsPage
+                        visible: !!row.modelData.settingsPage
                         icon: "settings"
                         iconColor: row.settingsOpen
                             ? Appearance.colors.colPrimary
@@ -624,9 +616,9 @@ ContentPage {
                     anchors.right: parent.right
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
-                    active: row.settingsOpen && !!row.modelData.manifest.settingsPage
+                    active: row.settingsOpen && !!row.modelData.settingsPage
                     source: active
-                        ? `file://${row.modelData.dir}/${row.modelData.manifest.settingsPage}`
+                        ? `file://${row.modelData.dir}/${row.modelData.settingsPage}`
                         : ""
                     onLoaded: {
                         if (!item) return;

@@ -29,7 +29,7 @@
   "Updated to %1": "Обновлено до %1",
   "Loader updated to %1": "Лоадер обновлён до %1",
   "What's new — loader %1": "Что нового — система модулей %1",
-  "Not tested with the modules system (no requiresLoader field)": "Не тестировался с системой модулей (нет поля requiresLoader)",
+  "Not tested with the modules system": "Не тестировался с системой модулей",
   "Not tested for loader v%1 (declares requiresLoader: %2)": "Не тестировался для системы модулей v%1 (модуль заявляет requiresLoader: %2)",
   "Your note": "Ваша заметка",
   "Doesn't work, has bugs, breaks on …": "Не работает, есть баги, ломается на …",
@@ -45,5 +45,6 @@
   "List": "Список",
   "Fetch the list of loader versions from GitHub": "Получить список версий загрузчика с GitHub",
   "Install version": "Поставить версию",
-  "Reinstall the loader at the selected version": "Переустановить загрузчик на выбранной версии"
+  "Reinstall the loader at the selected version": "Переустановить загрузчик на выбранной версии",
+  "Requires Quickshell reload to apply changes": "Требуется перезагрузка Quickshell для применения изменений"
 }
