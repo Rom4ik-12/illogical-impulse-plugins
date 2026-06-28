@@ -61,20 +61,8 @@
       "file": "modules/ii/bar/BarContent.qml",
       "optional": true,
       "skip_if_present": "id: leftCenterGroup\n            anchors.verticalCenter: parent.verticalCenter\n            implicitWidth: root.centerSideModuleWidth",
-      "find": "            implicitWidth: (root.useShortenedForm === 2) ? root.centerSideModuleWidth :\n                           (MprisController.activePlayer?.trackTitle?.length > 0) ?\n                           root.centerSideModuleWidth : resourcesWidget.implicitWidth + mediaWidget.implicitWidth + 4",
+      "find": "            implicitWidth: (root.useShortenedForm === 2) ? root.centerSideModuleWidth :\n                           (MprisController.activePlayer?.trackTitle?.length > 0) ?\n                           root.centerSideModuleWidth : leftCenterGroup.items[0].implicitWidth + leftCenterGroup.items[1].implicitWidth + 4",
       "replace": "            implicitWidth: root.centerSideModuleWidth"
-    },
-    {
-      "file": "modules/ii/bar/BarContent.qml",
-      "optional": true,
-      "find": "            Resources {\n                id: resourcesWidget\n                alwaysShowAllResources:",
-      "replace": "            Resources {\n                alwaysShowAllResources:"
-    },
-    {
-      "file": "modules/ii/bar/BarContent.qml",
-      "optional": true,
-      "find": "            Media {\n                id: mediaWidget\n                visible: root.useShortenedForm < 2 && MprisController.activePlayer?.trackTitle?.length > 0\n                Layout.fillWidth: true",
-      "replace": "            Media {\n                visible: root.useShortenedForm < 2\n                Layout.fillWidth: true"
     },
     {
       "file": "modules/ii/bar/Media.qml",
