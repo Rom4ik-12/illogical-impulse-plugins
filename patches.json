@@ -82,6 +82,20 @@
     {
       "file": "modules/ii/bar/BarContent.qml",
       "optional": true,
+      "skip_if_present": "            Media {\n                visible: root.useShortenedForm < 2\n                Layout.fillWidth: true",
+      "find": "            Media {\n                id: mediaWidget\n                visible: root.useShortenedForm < 2 && MprisController.activePlayer?.trackTitle?.length > 0\n                Layout.fillWidth: true",
+      "replace": "            Media {\n                visible: root.useShortenedForm < 2\n                Layout.fillWidth: true"
+    },
+    {
+      "file": "modules/ii/bar/Media.qml",
+      "optional": true,
+      "skip_if_present": "        StyledText {\n            visible: Config.options.bar.verbose\n            width: rowLayout.width - (CircularProgress.size + rowLayout.spacing * 2)",
+      "find": "        StyledText {\n            visible: Config.options.bar.verbose && MprisController.activePlayer?.trackTitle?.length > 0\n            width: rowLayout.width - (CircularProgress.size + rowLayout.spacing * 2)",
+      "replace": "        StyledText {\n            visible: Config.options.bar.verbose\n            width: rowLayout.width - (CircularProgress.size + rowLayout.spacing * 2)"
+    },
+    {
+      "file": "modules/ii/bar/BarContent.qml",
+      "optional": true,
       "skip_if_present": "UserModulesBarSlot",
       "find": "            SysTray {",
       "replace": "            UserModulesBarSlot {\n                Layout.alignment: Qt.AlignVCenter\n            }\n\n            SysTray {"
