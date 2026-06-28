@@ -54,9 +54,30 @@
     {
       "file": "modules/ii/bar/BarContent.qml",
       "optional": true,
+      "skip_if_present": "                ClockWidget {\n                    showDate:",
+      "find": "                ClockWidget {\n                    id: clockWidget\n                    showDate:",
+      "replace": "                ClockWidget {\n                    showDate:"
+    },
+    {
+      "file": "modules/ii/bar/BarContent.qml",
+      "optional": true,
       "skip_if_present": "id: leftCenterGroup\n            anchors.verticalCenter: parent.verticalCenter\n            implicitWidth: root.centerSideModuleWidth",
-      "find": "            implicitWidth: (root.useShortenedForm < 2 && MprisController.activePlayer?.trackTitle?.length > 0) ?\n                           root.centerSideModuleWidth : leftCenterGroup.naturalImplicitWidth",
+      "find": "            implicitWidth: (root.useShortenedForm === 2) ? root.centerSideModuleWidth :\n                           (MprisController.activePlayer?.trackTitle?.length > 0) ?\n                           root.centerSideModuleWidth : resourcesWidget.implicitWidth + (mediaWidget.visible ? mediaWidget.implicitWidth + 4 : 0)",
       "replace": "            implicitWidth: root.centerSideModuleWidth"
+    },
+    {
+      "file": "modules/ii/bar/BarContent.qml",
+      "optional": true,
+      "skip_if_present": "            Resources {\n                alwaysShowAllResources:",
+      "find": "            Resources {\n                id: resourcesWidget\n                alwaysShowAllResources:",
+      "replace": "            Resources {\n                alwaysShowAllResources:"
+    },
+    {
+      "file": "modules/ii/bar/BarContent.qml",
+      "optional": true,
+      "skip_if_present": "            Media {\n                visible: root.useShortenedForm < 2\n                Layout.fillWidth: true",
+      "find": "            Media {\n                id: mediaWidget\n                visible: root.useShortenedForm < 2 && MprisController.activePlayer?.trackTitle?.length > 0\n                Layout.fillWidth: true",
+      "replace": "            Media {\n                visible: root.useShortenedForm < 2\n                Layout.fillWidth: true"
     },
     {
       "file": "modules/ii/bar/BarContent.qml",
