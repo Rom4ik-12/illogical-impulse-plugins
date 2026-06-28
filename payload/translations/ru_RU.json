@@ -46,5 +46,7 @@
   "Fetch the list of loader versions from GitHub": "Получить список версий загрузчика с GitHub",
   "Install version": "Поставить версию",
   "Reinstall the loader at the selected version": "Переустановить загрузчик на выбранной версии",
-  "Requires Quickshell reload to apply changes": "Требуется перезагрузка Quickshell для применения изменений"
+  "Requires Quickshell reload to apply changes": "Требуется перезагрузка Quickshell для применения изменений",
+  "Module system": "Система модулей",
+  "Loader version %1": "Версия лоадера %1"
 }
