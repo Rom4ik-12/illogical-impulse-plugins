@@ -64,7 +64,12 @@ PY
 }
 
 apply_module() {
-    local id="$1"; local patches; patches=$(get_patches "$id")
+    local id="$1"
+    # Already recorded as applied — skip so enable/reapply-all are idempotent.
+    if jq -e --arg id "$id" 'has($id)' "$APPLIED" >/dev/null 2>&1; then
+        return 0
+    fi
+    local patches; patches=$(get_patches "$id")
     [ "$patches" = "[]" ] && return 0
     local n; n=$(jq 'length' <<< "$patches")
     local touched=()
@@ -97,6 +102,11 @@ revert_module() {
 
 reapply_all() {
     local ids; ids=$(jq -r 'keys[]' "$APPLIED" || true)
+    # Restore every file any active module has touched before re-applying,
+    # so repeated reapply-all calls don't stack patches on a half-patched file.
+    local all_files; all_files=$(jq -r '[.[]] | flatten | unique | .[]' "$APPLIED" || true)
+    while IFS= read -r rel; do [ -n "$rel" ] && restore_file "$rel"; done <<< "$all_files"
+    echo '{}' > "$APPLIED"
     while IFS= read -r id; do [ -n "$id" ] && apply_module "$id"; done <<< "$ids"
 }
 

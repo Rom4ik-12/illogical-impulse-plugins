@@ -73,6 +73,14 @@ chmod +x "$QS_DIR/scripts/user_modules/patch.sh" \
 # 2. Patch existing files
 python3 "$HERE/apply_patches.py" "$QS_DIR"
 
+# 2a. Rebaseline user-module patch backups so each module applies against the
+# freshly-reverted upstream files (prevents stacked/drifted patches after a
+# loader update).
+if [ -x "$QS_DIR/scripts/user_modules/patch.sh" ]; then
+    echo ":: rebaselining user module patches"
+    bash "$QS_DIR/scripts/user_modules/patch.sh" rebaseline
+fi
+
 # 2b. Merge our translation strings into existing locale files (additive —
 # we never clobber an existing key, only fill in missing ones).
 if [ -d "$HERE/payload/translations" ] && [ -d "$QS_DIR/translations" ]; then

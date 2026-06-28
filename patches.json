@@ -48,20 +48,27 @@
       "file": "modules/ii/bar/BarContent.qml",
       "optional": true,
       "skip_if_present": "rightCenterGroup\n            anchors.verticalCenter: parent.verticalCenter\n            implicitWidth: root.centerSideModuleWidth",
+      "find": "            implicitWidth: rightCenterGroupContent.implicitWidth",
+      "replace": "            implicitWidth: root.centerSideModuleWidth"
+    },
+    {
+      "file": "modules/ii/bar/BarContent.qml",
+      "optional": true,
+      "skip_if_present": "rightCenterGroup\n            anchors.verticalCenter: parent.verticalCenter\n            implicitWidth: root.centerSideModuleWidth",
       "find": "            implicitWidth: clockWidget.implicitWidth + 10",
       "replace": "            implicitWidth: root.centerSideModuleWidth"
     },
     {
       "file": "modules/ii/bar/BarContent.qml",
       "optional": true,
-      "find": "                ClockWidget {\n                    id: clockWidget\n                    showDate:",
-      "replace": "                ClockWidget {\n                    showDate:"
+      "find": "                ClockWidget {\n                    id: clockWidget\n                    showDate: (Config.options.bar.verbose && root.useShortenedForm < 2)\n                    Layout.alignment: Qt.AlignVCenter\n                }",
+      "replace": "                ClockWidget {\n                    showDate: (Config.options.bar.verbose && root.useShortenedForm < 2)\n                    Layout.alignment: Qt.AlignVCenter\n                    Layout.fillWidth: true\n                }"
     },
     {
       "file": "modules/ii/bar/BarContent.qml",
       "optional": true,
       "skip_if_present": "id: leftCenterGroup\n            anchors.verticalCenter: parent.verticalCenter\n            implicitWidth: root.centerSideModuleWidth",
-      "find": "            implicitWidth: (root.useShortenedForm === 2) ? root.centerSideModuleWidth :\n                           (MprisController.activePlayer?.trackTitle?.length > 0) ?\n                           root.centerSideModuleWidth : leftCenterGroup.items[0].implicitWidth + leftCenterGroup.items[1].implicitWidth + 4",
+      "find": "            implicitWidth: (root.useShortenedForm === 2) ? root.centerSideModuleWidth :\n                           (MprisController.activePlayer?.trackTitle?.length > 0) ?\n                           root.centerSideModuleWidth : leftCenterGroup.items[0].implicitWidth + leftCenterGroup.items[1].implicitWidth + 14",
       "replace": "            implicitWidth: root.centerSideModuleWidth"
     },
     {

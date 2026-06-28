@@ -79,7 +79,11 @@ def apply(target: Path, payload_dir: Path, patches_file: Path) -> int:
         find = p["find"]
         n = text.count(find)
         if n == 0:
-            print(f"[ERR ] {rel}: anchor not found", file=sys.stderr); rc = 1; continue
+            if p.get("optional"):
+                print(f"[skip] {rel}: anchor not found (optional)")
+            else:
+                print(f"[ERR ] {rel}: anchor not found", file=sys.stderr); rc = 1
+            continue
         if n > 1:
             print(f"[ERR ] {rel}: anchor matches {n} times, must be unique", file=sys.stderr); rc = 1; continue
 
